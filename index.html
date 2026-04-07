@@ -136,8 +136,8 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
 <div id="home" class="screen active">
 <div class="home-wrap">
   <div style="font-size:3.2rem;margin-bottom:.3rem;">⛳</div>
-  <h1 class="home-title">Stuart's Planner</h1>
-  <p class="home-sub">Course strategy. Hole by hole. © 2026</p>
+  <h1 class="home-title">Caddy Planner</h1>
+  <p class="home-sub">Course strategy. Hole by hole.</p>
   <div class="card home-card">
     <div class="lbl">Selected Course</div>
     <select id="home-course-sel" onchange="activeCourseIdx=parseInt(this.value);loadCourseRatingFields();updateCourseHandicap()"></select>
@@ -174,6 +174,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
     <button class="btn btn-primary" onclick="startRound()">Tee Off →</button>
     <button class="btn btn-secondary" onclick="nav('course-setup')">🏌️ Manage Courses &amp; Strategies</button>
     <button class="btn btn-secondary" onclick="nav('history')">📊 Round History &amp; Statistics</button>
+    <button class="btn btn-secondary" onclick="nav('exportimport')">💾 Export / Import Data</button>
   </div>
 </div>
 </div>
@@ -380,6 +381,80 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
 </div>
 </div>
 
+<!-- ══ EXPORT / IMPORT ══════════════════════════════════════════════════════════ -->
+<div id="exportimport" class="screen">
+<div class="wrap">
+  <div class="back-link" onclick="nav('home')">← Home</div>
+  <h2 style="margin-bottom:.25rem;">Export / Import</h2>
+  <p style="color:var(--muted);font-size:.85rem;margin-bottom:1rem;">
+    Back up all your data, transfer to another device, or share a course setup with a friend.
+  </p>
+
+  <!-- EXPORT -->
+  <div class="card">
+    <div style="font-weight:600;color:var(--accent);margin-bottom:.5rem;">📤 Export Data</div>
+    <p style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem;line-height:1.55;">
+      Downloads a <code style="color:var(--accent);font-family:monospace;">.json</code> backup file containing your courses, strategies, handicap index, and full round history. Keep this somewhere safe — it's everything the app knows.
+    </p>
+    <div class="lbl">Choose what to export</div>
+    <div style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:.75rem;">
+      <label style="display:flex;align-items:center;gap:.6rem;font-size:.88rem;cursor:pointer;">
+        <input type="checkbox" id="exp-courses" checked style="width:auto;accent-color:var(--greenlt);"/> Courses &amp; Strategies
+      </label>
+      <label style="display:flex;align-items:center;gap:.6rem;font-size:.88rem;cursor:pointer;">
+        <input type="checkbox" id="exp-history" checked style="width:auto;accent-color:var(--greenlt);"/> Round History
+      </label>
+      <label style="display:flex;align-items:center;gap:.6rem;font-size:.88rem;cursor:pointer;">
+        <input type="checkbox" id="exp-hi" checked style="width:auto;accent-color:var(--greenlt);"/> Handicap Index
+      </label>
+    </div>
+    <button class="btn btn-primary" onclick="doExport()">⬇ Download Backup File</button>
+  </div>
+
+  <!-- IMPORT -->
+  <div class="card">
+    <div style="font-weight:600;color:var(--accent);margin-bottom:.5rem;">📥 Import Data</div>
+    <p style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem;line-height:1.55;">
+      Restore from a backup, or load a course file shared by a friend. Choose how imported data merges with what's already here.
+    </p>
+    <div class="lbl">Select backup file (.json)</div>
+    <input type="file" id="imp-file" accept=".json" style="margin-bottom:.75rem;padding:.4rem;" onchange="previewImport()"/>
+    <div id="imp-preview" style="display:none;">
+      <div id="imp-summary" style="font-size:.83rem;color:var(--accent);background:rgba(255,255,255,.05);
+           border:1px solid var(--border);border-radius:8px;padding:.75rem;margin-bottom:.75rem;line-height:1.7;"></div>
+      <div class="lbl">Import options</div>
+      <div style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:.75rem;">
+        <label style="display:flex;align-items:center;gap:.6rem;font-size:.88rem;cursor:pointer;">
+          <input type="checkbox" id="imp-courses" checked style="width:auto;accent-color:var(--greenlt);"/> Courses &amp; Strategies
+        </label>
+        <label style="display:flex;align-items:center;gap:.6rem;font-size:.88rem;cursor:pointer;">
+          <input type="checkbox" id="imp-history" checked style="width:auto;accent-color:var(--greenlt);"/> Round History
+        </label>
+        <label style="display:flex;align-items:center;gap:.6rem;font-size:.88rem;cursor:pointer;">
+          <input type="checkbox" id="imp-hi" checked style="width:auto;accent-color:var(--greenlt);"/> Handicap Index
+        </label>
+      </div>
+      <div class="lbl">How to handle existing data</div>
+      <select id="imp-mode" style="margin-bottom:.75rem;">
+        <option value="merge">Merge — add imported rounds &amp; courses to existing data</option>
+        <option value="replace">Replace — overwrite everything with the imported file</option>
+      </select>
+      <button class="btn btn-primary" onclick="doImport()">⬆ Import Selected Data</button>
+      <div id="imp-msg" style="font-size:.82rem;margin-top:.5rem;"></div>
+    </div>
+  </div>
+
+  <!-- DANGER ZONE -->
+  <div class="card" style="border-color:rgba(198,40,40,.25);">
+    <div style="font-weight:600;color:#ef9a9a;margin-bottom:.5rem;">⚠️ Clear All Data</div>
+    <p style="font-size:.83rem;color:var(--muted);margin-bottom:.75rem;line-height:1.55;">
+      Permanently deletes all courses, round history and settings from this browser. Export a backup first!
+    </p>
+    <button class="btn btn-danger" onclick="clearAllData()">🗑 Clear Everything</button>
+  </div>
+</div>
+</div>
+
 <script>
 // ══════════════════════════════════════════════════════════ DATA ═════════════
 const DS={name:"Desert Springs Golf Club",holes:[
@@ -424,6 +499,12 @@ function nav(id){
   if(id==='course-setup')initCourseSetup();
   if(id==='history')renderHistory();
   if(id==='home')initHome();
+  if(id==='exportimport'){
+    // reset import panel when opening
+    document.getElementById('imp-file').value='';
+    document.getElementById('imp-preview').style.display='none';
+    document.getElementById('imp-msg').textContent='';
+  }
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   window.scrollTo(0,0);
@@ -1176,6 +1257,149 @@ function exportHistPDF(id){
   const r=histExportMap[id];
   if(!r){alert('Round data not found. Please re-open History and try again.');return;}
   exportPDF(r);
+}
+
+// ══════════════════════════════════════════════════ EXPORT / IMPORT ══════════
+function doExport(){
+  const inclCourses = document.getElementById('exp-courses').checked;
+  const inclHistory = document.getElementById('exp-history').checked;
+  const inclHI      = document.getElementById('exp-hi').checked;
+  if(!inclCourses&&!inclHistory&&!inclHI){
+    alert('Please select at least one item to export.');return;
+  }
+  const payload={
+    _app:'CaddyPlanner',
+    _version:9,
+    _exported:new Date().toISOString(),
+  };
+  if(inclCourses) payload.courses=courses;
+  if(inclHistory) payload.history=history;
+  if(inclHI)      payload.playerHI=playerHI;
+
+  const json=JSON.stringify(payload,null,2);
+  const blob=new Blob([json],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const dateStr=new Date().toISOString().split('T')[0];
+  a.href=url;
+  a.download=`caddy-planner-backup-${dateStr}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+let importedPayload=null;
+
+function previewImport(){
+  const file=document.getElementById('imp-file').files[0];
+  const preview=document.getElementById('imp-preview');
+  const summary=document.getElementById('imp-summary');
+  const msg=document.getElementById('imp-msg');
+  importedPayload=null;
+  preview.style.display='none';
+  msg.textContent='';
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(data._app!=='CaddyPlanner'){
+        summary.textContent='⚠️ This does not appear to be a Caddy Planner backup file.';
+        summary.style.color='#f87171';
+        preview.style.display='block';
+        return;
+      }
+      importedPayload=data;
+      const lines=[];
+      if(data.courses) lines.push(`✅ ${data.courses.length} course${data.courses.length!==1?'s':''}: ${data.courses.map(c=>c.name).join(', ')}`);
+      if(data.history) lines.push(`✅ ${data.history.length} round${data.history.length!==1?'s':''} of history`);
+      if(data.playerHI!==undefined) lines.push(`✅ Handicap Index: ${data.playerHI}`);
+      if(data._exported) lines.push(`📅 Exported: ${new Date(data._exported).toLocaleDateString()}`);
+      summary.innerHTML=lines.join('<br/>');
+      summary.style.color='var(--accent)';
+      preview.style.display='block';
+      // Pre-tick only what's available in the file
+      document.getElementById('imp-courses').disabled=!data.courses;
+      document.getElementById('imp-courses').checked=!!data.courses;
+      document.getElementById('imp-history').disabled=!data.history;
+      document.getElementById('imp-history').checked=!!data.history;
+      document.getElementById('imp-hi').disabled=data.playerHI===undefined;
+      document.getElementById('imp-hi').checked=data.playerHI!==undefined;
+    } catch(err){
+      summary.textContent='⚠️ Could not read file — is it a valid .json backup?';
+      summary.style.color='#f87171';
+      preview.style.display='block';
+    }
+  };
+  reader.readAsText(file);
+}
+
+function doImport(){
+  if(!importedPayload){alert('No valid file loaded.');return;}
+  const inclCourses = document.getElementById('imp-courses').checked && !!importedPayload.courses;
+  const inclHistory = document.getElementById('imp-history').checked && !!importedPayload.history;
+  const inclHI      = document.getElementById('imp-hi').checked && importedPayload.playerHI!==undefined;
+  const mode        = document.getElementById('imp-mode').value;
+  const msg         = document.getElementById('imp-msg');
+
+  if(!inclCourses&&!inclHistory&&!inclHI){
+    msg.textContent='⚠️ Nothing selected to import.';msg.style.color='#f87171';return;
+  }
+  const modeLabel=mode==='replace'?'REPLACE all existing data':'MERGE with existing data';
+  if(!confirm(`This will ${modeLabel}.\n\nAre you sure?`))return;
+
+  if(inclCourses){
+    if(mode==='replace'){
+      courses=importedPayload.courses;
+    } else {
+      // Merge: add courses not already present by name
+      const existingNames=new Set(courses.map(c=>c.name));
+      importedPayload.courses.forEach(c=>{
+        if(!existingNames.has(c.name))courses.push(c);
+        else {
+          // Overwrite matching course (keeps strategies up to date)
+          const idx=courses.findIndex(x=>x.name===c.name);
+          if(idx>=0)courses[idx]=c;
+        }
+      });
+    }
+  }
+  if(inclHistory){
+    if(mode==='replace'){
+      history=importedPayload.history;
+    } else {
+      // Merge: add rounds whose IDs don't already exist
+      const existingIds=new Set(history.map(r=>r.id));
+      importedPayload.history.forEach(r=>{if(!existingIds.has(r.id))history.push(r);});
+      history.sort((a,b)=>b.id-a.id); // keep newest first
+    }
+  }
+  if(inclHI){
+    playerHI=importedPayload.playerHI;
+    localStorage.setItem('cp_hi',String(playerHI));
+  }
+
+  activeCourseIdx=0;
+  save();
+  initHome();
+  importedPayload=null;
+  document.getElementById('imp-file').value='';
+  document.getElementById('imp-preview').style.display='none';
+  const count=[inclCourses?'courses':'',inclHistory?'history':'',inclHI?'HI':''].filter(Boolean).join(', ');
+  msg.textContent=`✅ Import complete (${count}).`;
+  msg.style.color='#4ade80';
+}
+
+function clearAllData(){
+  if(!confirm('⚠️ This will permanently delete ALL courses, rounds and settings.\n\nExport a backup first!\n\nAre you absolutely sure?'))return;
+  if(!confirm('Last chance — really delete everything?'))return;
+  localStorage.removeItem('cp_courses');
+  localStorage.removeItem('cp_history');
+  localStorage.removeItem('cp_hi');
+  courses=[JSON.parse(JSON.stringify(DS))];
+  history=[];playerHI=0;activeCourseIdx=0;
+  save();initHome();nav('home');
 }
 
 // ══════════════════════════════════════════════════════════ BOOT ══════════════
