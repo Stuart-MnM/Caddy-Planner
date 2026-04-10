@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Stuart's Planner ⛳</title>
+<title>Caddy Planner ⛳</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Sans+3:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet"/>
 <style>
 :root{
@@ -136,8 +136,8 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
 <div id="home" class="screen active">
 <div class="home-wrap">
   <div style="font-size:3.2rem;margin-bottom:.3rem;">⛳</div>
-  <h1 class="home-title">Stuart's Planner</h1>
-  <p class="home-sub">Course strategy. Hole by hole - © 2026.</p>
+  <h1 class="home-title">Caddy Planner</h1>
+  <p class="home-sub">Course strategy. Hole by hole.</p>
   <div class="card home-card">
     <div class="lbl">Selected Course</div>
     <select id="home-course-sel" onchange="activeCourseIdx=parseInt(this.value);loadCourseRatingFields();updateCourseHandicap()"></select>
@@ -172,6 +172,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
   </div>
   <div class="home-btns">
     <button class="btn btn-primary" onclick="startRound()">Tee Off →</button>
+    <button class="btn btn-secondary" onclick="nav('walk')">🚶 Walk the Course</button>
     <button class="btn btn-secondary" onclick="nav('course-setup')">🏌️ Manage Courses &amp; Strategies</button>
     <button class="btn btn-secondary" onclick="nav('history')">📊 Round History &amp; Statistics</button>
     <button class="btn btn-secondary" onclick="nav('exportimport')">💾 Export / Import Data</button>
@@ -455,6 +456,72 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
 </div>
 </div>
 
+<!-- ══ WALK THE COURSE ═════════════════════════════════════════════════════════ -->
+<div id="walk" class="screen">
+<div class="wrap">
+
+  <div id="walk-sel-panel">
+    <div class="back-link" onclick="nav('home')">← Home</div>
+    <h2 style="margin-bottom:.25rem;">🚶 Walk the Course</h2>
+    <p style="color:var(--muted);font-size:.85rem;margin-bottom:1rem;line-height:1.55;">
+      Walk hole by hole and record your strategy notes as you go.
+      Everything saves automatically as you move between holes.
+    </p>
+    <div class="card">
+      <div class="lbl">Select Course to Walk</div>
+      <select id="walk-course-sel" style="margin-bottom:.75rem;"></select>
+      <button class="btn btn-primary" onclick="startWalk()">Start Walking →</button>
+    </div>
+  </div>
+
+  <div id="walk-play-panel" style="display:none;">
+
+    <div class="topbar">
+      <div>
+        <div style="color:var(--muted);font-style:italic;font-size:.85rem;" id="walk-course-name"></div>
+        <div style="font-size:.75rem;color:#4a7c59;" id="walk-progress-txt"></div>
+      </div>
+      <div class="dots" id="walk-dots"></div>
+    </div>
+
+    <div class="hole-header">
+      <div class="hole-num" id="walk-holenum"></div>
+      <div>
+        <div id="walk-par-badge" class="par-badge"></div>
+        <div class="yards-si" id="walk-yards-si"></div>
+      </div>
+    </div>
+
+    <div id="walk-existing-box" style="display:none;margin-bottom:.75rem;">
+      <div class="lbl">Current saved strategy</div>
+      <div id="walk-existing-text" style="font-size:.85rem;color:#6a9970;font-style:italic;
+           background:rgba(255,255,255,.04);border:1px solid var(--border);
+           border-left:3px solid var(--muted);border-radius:8px;padding:.65rem .75rem;
+           line-height:1.55;"></div>
+    </div>
+
+    <div class="sec" id="walk-strat-lbl">Strategy notes</div>
+    <textarea id="walk-strat-ta" rows="6"
+      style="min-height:140px;font-size:.92rem;line-height:1.6;margin-bottom:1rem;"
+      placeholder="Describe your strategy for this hole…&#10;&#10;e.g. Driver down the left, avoid the bunker right. Mid-iron to centre green."
+      oninput="walkStratChanged()"></textarea>
+
+    <div class="nav-row">
+      <button class="nav-btn" id="walk-prev-btn" onclick="walkPrev()">← Prev</button>
+      <button class="nav-btn" id="walk-next-btn" onclick="walkNext()">Next →</button>
+    </div>
+
+    <button class="btn btn-primary" onclick="saveWalk()">💾 Save All &amp; Finish</button>
+    <button class="btn btn-danger" style="margin-top:.25rem;" onclick="abandonWalk()">✕ Cancel Walk</button>
+
+    <div style="font-size:.75rem;color:var(--muted);text-align:center;margin-top:.5rem;">
+      Strategies auto-save as you move between holes
+    </div>
+  </div>
+
+</div>
+</div>
+
 <script>
 // ══════════════════════════════════════════════════════════ DATA ═════════════
 const DS={name:"Desert Springs Golf Club",holes:[
@@ -499,6 +566,7 @@ function nav(id){
   if(id==='course-setup')initCourseSetup();
   if(id==='history')renderHistory();
   if(id==='home')initHome();
+  if(id==='walk')initWalk();
   if(id==='exportimport'){
     // reset import panel when opening
     document.getElementById('imp-file').value='';
@@ -1400,6 +1468,107 @@ function clearAllData(){
   courses=[JSON.parse(JSON.stringify(DS))];
   history=[];playerHI=0;activeCourseIdx=0;
   save();initHome();nav('home');
+}
+
+// ════════════════════════════════════════════════════ COURSE WALK ════════════
+let walkCourseIdx=0, walkHoleIdx=0, walkStrategies=[];
+
+function initWalk(){
+  const sel=document.getElementById('walk-course-sel');
+  sel.innerHTML=courses.map((c,i)=>`<option value="${i}">${c.name}</option>`).join('');
+  sel.value=0;
+  document.getElementById('walk-sel-panel').style.display='block';
+  document.getElementById('walk-play-panel').style.display='none';
+}
+
+function startWalk(){
+  walkCourseIdx=parseInt(document.getElementById('walk-course-sel').value);
+  walkHoleIdx=0;
+  walkStrategies=courses[walkCourseIdx].holes.map(h=>h.strategy||'');
+  document.getElementById('walk-sel-panel').style.display='none';
+  document.getElementById('walk-play-panel').style.display='block';
+  renderWalkHole();
+}
+
+function renderWalkHole(){
+  const course=courses[walkCourseIdx];
+  const hole=course.holes[walkHoleIdx];
+  const filled=walkStrategies.filter(s=>s.trim()).length;
+
+  document.getElementById('walk-course-name').textContent=course.name;
+  document.getElementById('walk-progress-txt').textContent=
+    `Hole ${walkHoleIdx+1} of ${course.holes.length} · ${filled} strateg${filled!==1?'ies':'y'} recorded`;
+
+  document.getElementById('walk-dots').innerHTML=course.holes.map((_,i)=>{
+    const hasTxt=walkStrategies[i]&&walkStrategies[i].trim();
+    const cls=i===walkHoleIdx?'dot dot-active':hasTxt?'dot dot-done':'dot dot-todo';
+    return `<div class="${cls}" onclick="walkJump(${i})" title="Hole ${i+1}"></div>`;
+  }).join('');
+
+  document.getElementById('walk-holenum').textContent=hole.no;
+  const pb=document.getElementById('walk-par-badge');
+  pb.textContent=`Par ${hole.par}`;
+  pb.className='par-badge '+(hole.par===3?'par3':hole.par===4?'par4':'par5');
+  document.getElementById('walk-yards-si').textContent=`${hole.yards}y · SI ${hole.si}`;
+
+  const saved=course.holes[walkHoleIdx].strategy||'';
+  const existBox=document.getElementById('walk-existing-box');
+  if(saved){
+    existBox.style.display='block';
+    document.getElementById('walk-existing-text').textContent=saved;
+  } else {
+    existBox.style.display='none';
+  }
+
+  document.getElementById('walk-strat-lbl').textContent=saved?'Edit strategy':'New strategy notes';
+  document.getElementById('walk-strat-ta').value=walkStrategies[walkHoleIdx];
+
+  document.getElementById('walk-prev-btn').disabled=walkHoleIdx===0;
+  document.getElementById('walk-next-btn').disabled=walkHoleIdx===course.holes.length-1;
+}
+
+function walkStratChanged(){
+  walkStrategies[walkHoleIdx]=document.getElementById('walk-strat-ta').value;
+}
+
+function autoSave(){
+  walkStrategies[walkHoleIdx]=document.getElementById('walk-strat-ta').value;
+}
+
+function walkPrev(){
+  if(walkHoleIdx<=0)return;
+  autoSave();walkHoleIdx--;renderWalkHole();
+}
+
+function walkNext(){
+  if(walkHoleIdx>=courses[walkCourseIdx].holes.length-1)return;
+  autoSave();walkHoleIdx++;renderWalkHole();
+}
+
+function walkJump(i){
+  autoSave();walkHoleIdx=i;renderWalkHole();
+}
+
+function saveWalk(){
+  autoSave();
+  const course=courses[walkCourseIdx];
+  let updated=0;
+  walkStrategies.forEach((s,i)=>{
+    if(s.trim()!==course.holes[i].strategy){
+      course.holes[i].strategy=s.trim();
+      updated++;
+    }
+  });
+  save();
+  nav('home');
+  setTimeout(()=>alert(updated>0
+    ?`✅ Walk complete — ${updated} hole strateg${updated!==1?'ies':'y'} saved to ${course.name}.`
+    :'Walk complete — no strategy changes were made.'),150);
+}
+
+function abandonWalk(){
+  if(!confirm('Cancel the walk?\n\nUnsaved changes will be lost.'))return;
+  nav('home');
 }
 
 // ══════════════════════════════════════════════════════════ BOOT ══════════════
