@@ -2,8 +2,19 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>Caddy Planner ⛳</title>
+
+<!-- iOS PWA — makes it open as standalone app, no Safari bar -->
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Caddy Planner"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="theme-color" content="#0a1a0c"/>
+
+<!-- Home screen icon — generated as inline SVG data URI so no external file needed -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%230a1a0c'/%3E%3Ccircle cx='90' cy='75' r='28' fill='%232e7d32'/%3E%3Crect x='88' y='75' width='4' height='55' fill='%23a5d6a7'/%3E%3Crect x='72' y='126' width='36' height='6' rx='3' fill='%23a5d6a7'/%3E%3Cpath d='M92 47 L112 68 L92 68 Z' fill='%23a5d6a7'/%3E%3C/svg%3E"/>
+
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Sans+3:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -15,7 +26,11 @@
   --border:rgba(255,255,255,.10);--red:#c62828;--amber:#f57f17;--gold:#f9a825;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--text);font-family:'Source Sans 3',sans-serif;min-height:100vh;overflow-x:hidden;}
+body{background:var(--bg);color:var(--text);font-family:'Source Sans 3',sans-serif;min-height:100vh;overflow-x:hidden;
+     padding-top:env(safe-area-inset-top);
+     padding-bottom:env(safe-area-inset-bottom);
+     padding-left:env(safe-area-inset-left);
+     padding-right:env(safe-area-inset-right);}
 h1,h2,h3{font-family:'Playfair Display',serif;}
 .screen{display:none;}.screen.active{display:block;}
 .wrap{max-width:500px;margin:0 auto;padding:1rem 1rem 2rem;}
