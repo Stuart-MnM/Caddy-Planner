@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<title>Timor Omnis Abesto ⛳</title>
+<title>Caddy Planner ⛳</title>
 
 <!-- iOS PWA — makes it open as standalone app, no Safari bar -->
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-<meta name="apple-mobile-web-app-title" content="Stuart's Caddy Planner"/>
+<meta name="apple-mobile-web-app-title" content="Caddy Planner"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#0a1a0c"/>
 
@@ -152,6 +152,17 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
   0%,100%{box-shadow:0 0 0 3px rgba(198,40,40,.25);}
   50%{box-shadow:0 0 0 8px rgba(198,40,40,.05);}
 }
+/* Scrambling */
+.scramble-row{display:flex;gap:.5rem;margin-bottom:1rem;align-items:center;}
+.scramble-hint{font-size:.75rem;color:var(--muted);font-style:italic;}
+/* Hole override */
+.override-box{background:rgba(249,168,37,.08);border:1px solid rgba(249,168,37,.25);
+  border-radius:10px;padding:.75rem;margin-bottom:1rem;}
+.override-title{font-size:.72rem;color:#ffe082;text-transform:uppercase;
+  letter-spacing:.08em;margin-bottom:.5rem;}
+.override-active{background:rgba(249,168,37,.15);border-color:rgba(249,168,37,.5);}
+.override-badge{display:inline-block;background:rgba(249,168,37,.2);border:1px solid rgba(249,168,37,.4);
+  border-radius:6px;padding:.15rem .5rem;font-size:.75rem;color:#ffe082;margin-left:.5rem;}
 </style>
 </head>
 <body>
@@ -160,7 +171,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
 <div id="home" class="screen active">
 <div class="home-wrap">
   <div style="font-size:3.2rem;margin-bottom:.3rem;">⛳</div>
-  <h1 class="home-title">Stuart's Caddy Planner</h1>
+  <h1 class="home-title">Caddy Planner</h1>
   <p class="home-sub">Course strategy. Hole by hole.</p>
   <div class="card home-card">
     <div class="lbl">Selected Course</div>
@@ -296,6 +307,42 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
       <div class="yards-si" id="r-yards-si"></div>
       <div id="r-stroke-allowance" style="color:#f9a825;font-size:.78rem;margin-top:.1rem;"></div>
     </div>
+    <div style="margin-left:auto;align-self:flex-start;padding-top:.3rem;">
+      <button onclick="openOverride()"
+        style="font-size:.72rem;color:var(--muted);background:none;
+               border:1px solid rgba(255,255,255,.1);border-radius:6px;
+               padding:.28rem .55rem;cursor:pointer;">⚙ Override</button>
+    </div>
+  </div>
+
+  <!-- Hole override panel -->
+  <div id="r-override-panel" style="display:none;" class="override-box">
+    <div class="override-title">⚙ Temporary Hole Override — this round only</div>
+    <p style="font-size:.8rem;color:#ffe082;margin-bottom:.75rem;line-height:1.5;">
+      Changes here apply to this round only and do not affect saved course data.
+    </p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:.6rem;">
+      <div>
+        <div class="lbl">Override Par</div>
+        <select id="r-override-par" style="text-align:center;">
+          <option value="">— use course par —</option>
+          <option value="3">Par 3</option>
+          <option value="4">Par 4</option>
+          <option value="5">Par 5</option>
+        </select>
+      </div>
+      <div>
+        <div class="lbl">Override Yards</div>
+        <input type="number" id="r-override-yards" placeholder="— use course yards —" style="text-align:center;"/>
+      </div>
+    </div>
+    <div class="lbl">Competition / Conditions Note</div>
+    <input type="text" id="r-override-note" placeholder="e.g. Hole playing as par 3 — drainage works"
+           style="margin-bottom:.6rem;"/>
+    <div style="display:flex;gap:.5rem;">
+      <button class="btn btn-amber" style="margin:0;flex:1;" onclick="saveOverride()">✅ Apply Override</button>
+      <button class="btn btn-danger" style="margin:0;flex:1;" onclick="clearOverride()">✕ Clear</button>
+    </div>
   </div>
 
   <div class="strat-box">
@@ -303,7 +350,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
     <div id="r-strategy" class="strat-text"></div>
   </div>
 
-  <!-- FIX 6: N/A removed — just Hit / Miss L / Miss R -->
   <div id="r-fw-section">
     <div class="sec">🏌️ Tee Shot / Fairway</div>
     <div class="tog-row" id="r-fw-togs">
@@ -317,6 +363,15 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
   <div class="tog-row" id="r-gir-togs">
     <button class="tog" data-val="hit"  onclick="setTog('gir','hit')">✅ GIR Hit</button>
     <button class="tog" data-val="miss" onclick="setTog('gir','miss')">❌ Missed</button>
+  </div>
+
+  <!-- Scrambling — only shown when GIR is missed -->
+  <div id="r-scramble-section" style="display:none;">
+    <div class="sec">🏳 Scrambling — did you get up and down?</div>
+    <div class="tog-row" id="r-scramble-togs">
+      <button class="tog" data-val="yes" onclick="setTog('scramble','yes')">✅ Yes — saved par</button>
+      <button class="tog" data-val="no"  onclick="setTog('scramble','no')">❌ No</button>
+    </div>
   </div>
 
   <div class="sec">🏅 Gross Score</div>
@@ -731,7 +786,9 @@ function startRound(){
     playerHI:playerHI,courseHandicap:getCourseHandicap(),
   };
   holeData=courses[activeCourseIdx].holes.map(h=>({
-    fw:null,gir:null,score:h.par,putts:2,sr:null,comment:'',completed:false
+    fw:null,gir:null,score:h.par,putts:2,sr:null,comment:'',completed:false,
+    scramble:null,
+    overridePar:null,overrideYards:null,overrideNote:''
   }));
   currentHole=0;
   stratAppliedHoles=new Set();
@@ -852,27 +909,51 @@ function renderRound(){
   const course=courses[activeCourseIdx];
   const hole=course.holes[currentHole];
   const hd=holeData[currentHole];
+
+  // Use override par/yards if set, otherwise course defaults
+  const effectivePar   = hd.overridePar   || hole.par;
+  const effectiveYards = hd.overrideYards || hole.yards;
+
   document.getElementById('r-course-name').textContent=course.name;
   document.getElementById('r-round-meta').textContent=
     `${roundMeta.type} · ${holeData.filter(h=>h.completed).length}/${course.holes.length} done`;
   document.getElementById('r-dots').innerHTML=course.holes.map((_,i)=>
     `<div class="dot ${holeData[i].completed?'dot-done':i===currentHole?'dot-active':'dot-todo'}"
           onclick="jumpHole(${i})" title="Hole ${i+1}"></div>`).join('');
+
   document.getElementById('r-holenum').textContent=hole.no;
   const pb=document.getElementById('r-par-badge');
-  pb.textContent=`Par ${hole.par}`;pb.className='par-badge '+(hole.par===3?'par3':hole.par===4?'par4':'par5');
-  document.getElementById('r-yards-si').textContent=`${hole.yards}y · SI ${hole.si}`;
+  pb.textContent=`Par ${effectivePar}${hd.overridePar?' ⚙':''}`;
+  pb.className='par-badge '+(effectivePar===3?'par3':effectivePar===4?'par4':'par5');
+  document.getElementById('r-yards-si').textContent=
+    `${effectiveYards}y · SI ${hole.si}${hd.overrideNote?' · '+hd.overrideNote:''}`;
+
   const ch=getCourseHandicap();
   const saEl=document.getElementById('r-stroke-allowance');
   if(ch!==null){
     const strokes=Math.floor(ch/18)+(hole.si<=(ch%18)?1:0);
     saEl.textContent=strokes>0?`+${strokes} stroke${strokes>1?'s':''} allowance`:'No stroke allowance';
   } else saEl.textContent='';
+
   const stEl=document.getElementById('r-strategy');
   if(hole.strategy){stEl.textContent=hole.strategy;stEl.className='strat-text';}
   else{stEl.textContent='No strategy set. Add one in Manage Courses.';stEl.className='strat-empty';}
-  document.getElementById('r-fw-section').style.display=hole.par===3?'none':'block';
+
+  // Fairway hidden on par 3 (use effective par)
+  document.getElementById('r-fw-section').style.display=effectivePar===3?'none':'block';
+
   renderTogs('fw',hd.fw);renderTogs('gir',hd.gir);renderTogs('sr',hd.sr);
+  renderTogs('scramble',hd.scramble);
+
+  // Scrambling only shown when GIR is missed
+  document.getElementById('r-scramble-section').style.display=hd.gir==='miss'?'block':'none';
+
+  // Override panel — restore values if already set
+  document.getElementById('r-override-panel').style.display='none';
+  document.getElementById('r-override-par').value=hd.overridePar||'';
+  document.getElementById('r-override-yards').value=hd.overrideYards||'';
+  document.getElementById('r-override-note').value=hd.overrideNote||'';
+
   renderScore();
   document.getElementById('r-putts').textContent=hd.putts;
   document.getElementById('r-comment').value=hd.comment;
@@ -885,21 +966,23 @@ function renderRound(){
 function renderScore(){
   const hd=holeData[currentHole];
   const hole=courses[activeCourseIdx].holes[currentHole];
-  const sc=hd.score===null?hole.par:hd.score;
+  const effectivePar=hd.overridePar||hole.par;
+  const sc=hd.score===null?effectivePar:hd.score;
   const el=document.getElementById('r-score-num');
   const lbl=document.getElementById('r-score-label');
   el.textContent=sc;
-  const diff=sc-hole.par;
+  const diff=sc-effectivePar;
   const labels={'-3':'Albatross','-2':'Eagle','-1':'Birdie','0':'Par','1':'Bogey','2':'Double','3':'Triple'};
   lbl.textContent=labels[String(diff)]||(diff>0?'+'+diff:diff);
   el.className='score-num '+(diff<=-2?'score-eagle':diff===-1?'score-birdie':diff===0?'score-par':diff===1?'score-bogey':diff===2?'score-double':'score-worse');
   const ch=getCourseHandicap();
-  const pts=stablefordPts(sc,hole.par,hole.si,ch);
+  const pts=stablefordPts(sc,effectivePar,hole.si,ch);
   document.getElementById('r-stableford-pts').textContent=pts!==null?`Stableford: ${pts} point${pts!==1?'s':''}  (CH ${ch})`:'';
 }
 function renderTogs(type,activeVal){
-  const ids={fw:'r-fw-togs',gir:'r-gir-togs',sr:'r-sr-togs'};
-  const colMap={'hit':'green','miss-left':'red','miss-right':'blue','miss':'red','correct':'green','adjusted':'amber','wrong':'red'};
+  const ids={fw:'r-fw-togs',gir:'r-gir-togs',sr:'r-sr-togs',scramble:'r-scramble-togs'};
+  const colMap={'hit':'green','miss-left':'red','miss-right':'blue','miss':'red',
+                'correct':'green','adjusted':'amber','wrong':'red','yes':'green','no':'red'};
   const el=document.getElementById(ids[type]);if(!el)return;
   el.querySelectorAll('.tog').forEach(btn=>{
     const v=btn.dataset.val;
@@ -917,12 +1000,19 @@ function setTog(type,val){
   holeData[currentHole][type]=holeData[currentHole][type]===val?null:val;
   renderTogs(type,holeData[currentHole][type]);
   if(type==='sr')renderSrHint(holeData[currentHole].sr);
+  if(type==='gir'){
+    const showScramble=holeData[currentHole].gir==='miss';
+    document.getElementById('r-scramble-section').style.display=showScramble?'block':'none';
+    if(!showScramble)holeData[currentHole].scramble=null;
+  }
 }
 function adjPutts(d){saveFields();holeData[currentHole].putts=Math.max(0,holeData[currentHole].putts+d);document.getElementById('r-putts').textContent=holeData[currentHole].putts;}
 function adjScore(d){
   saveFields();
-  const par=courses[activeCourseIdx].holes[currentHole].par;
-  const curr=holeData[currentHole].score===null?par:holeData[currentHole].score;
+  const hd=holeData[currentHole];
+  const hole=courses[activeCourseIdx].holes[currentHole];
+  const effectivePar=hd.overridePar||hole.par;
+  const curr=hd.score===null?effectivePar:hd.score;
   holeData[currentHole].score=Math.max(1,curr+d);renderScore();
 }
 function saveFields(){holeData[currentHole].comment=document.getElementById('r-comment').value;}
@@ -955,14 +1045,22 @@ function renderScorecard(){
   const fwHit=holeData.filter((h,i)=>doneMask[i]&&h.fw==='hit').length;
   const girHit=holeData.filter((h,i)=>doneMask[i]&&h.gir==='hit').length;
   const putts=holeData.filter((h,i)=>doneMask[i]).reduce((a,h)=>a+(h.putts||0),0);
-  // Gross and par only for completed holes
+  // Scrambling — holes where GIR missed and got up and down
+  const girMissed=holeData.filter((h,i)=>doneMask[i]&&h.gir==='miss').length;
+  const scrambled=holeData.filter((h,i)=>doneMask[i]&&h.gir==='miss'&&h.scramble==='yes').length;
+  const scramblePct=girMissed>0?Math.round(scrambled/girMissed*100):null;
+  // Gross and par only for completed holes — use override par where set
   const gross=holeData.filter((h,i)=>doneMask[i]).reduce((a,h,_,arr)=>{
-    const idx=holeData.indexOf(h);return a+(h.score||holes[idx].par);},0);
-  const playedPar=holes.filter((h,i)=>doneMask[i]).reduce((a,h)=>a+h.par,0);
+    const idx=holeData.indexOf(h);return a+(h.score||(h.overridePar||holes[idx].par));},0);
+  const playedPar=holeData.filter((h,i)=>doneMask[i]).reduce((a,h,idx2)=>{
+    const idx=holeData.filter((_,i2)=>doneMask[i2]).indexOf(h);
+    const holeIdx=holeData.indexOf(h);
+    return a+(h.overridePar||holes[holeIdx].par);},0);
   const vsPar=gross-playedPar;
   const totalPts=ch!==null?holeData.filter((h,i)=>doneMask[i]).reduce((a,h,_,arr)=>{
     const idx=holeData.indexOf(h);
-    const p=stablefordPts(h.score||holes[idx].par,holes[idx].par,holes[idx].si,ch);
+    const effectivePar=h.overridePar||holes[idx].par;
+    const p=stablefordPts(h.score||effectivePar,effectivePar,holes[idx].si,ch);
     return a+(p||0);},0):null;
 
   document.getElementById('sc-stats').innerHTML=`
@@ -971,7 +1069,8 @@ function renderScorecard(){
     <div class="stat-card"><div class="stat-val">${totalPts!==null?totalPts:'—'}</div><div class="stat-lbl">Stableford Pts</div></div>
     <div class="stat-card"><div class="stat-val">${putts||'—'}</div><div class="stat-lbl">Putts (played)</div></div>
     <div class="stat-card"><div class="stat-val">${fwHoles?Math.round(fwHit/fwHoles*100)+'%':'—'}</div><div class="stat-lbl">Fairways Hit</div></div>
-    <div class="stat-card"><div class="stat-val">${doneCount?Math.round(girHit/doneCount*100)+'%':'—'}</div><div class="stat-lbl">GIR</div></div>`;
+    <div class="stat-card"><div class="stat-val">${doneCount?Math.round(girHit/doneCount*100)+'%':'—'}</div><div class="stat-lbl">GIR</div></div>
+    <div class="stat-card"><div class="stat-val">${scramblePct!==null?scramblePct+'%':'—'}</div><div class="stat-lbl">Scrambling</div></div>`;
 
   // Show note about unplayed holes if not complete
   document.getElementById('sc-unplayed-note').style.display=isComplete?'none':'block';
@@ -1116,7 +1215,7 @@ function saveRoundToHistory(){
 }
 function newRound(){
   saveRoundToHistory();
-  holeData=courses[activeCourseIdx].holes.map(h=>({fw:null,gir:null,score:h.par,putts:2,sr:null,comment:'',completed:false}));
+  holeData=courses[activeCourseIdx].holes.map(h=>({fw:null,gir:null,score:h.par,putts:2,sr:null,comment:'',completed:false,scramble:null,overridePar:null,overrideYards:null,overrideNote:''}));
   currentHole=0;stratAppliedHoles=new Set();roundSaved=false;renderRound();nav('round');
 }
 function saveAndHome(){saveRoundToHistory();initHome();nav('home');}
@@ -1255,7 +1354,7 @@ function exportPDF(histRecord){
   </tr></tfoot></table>
   ${adjSection}
   <div style="margin-top:1.5rem;font-size:.7rem;color:#aaa;border-top:1px solid #eee;padding-top:.6rem;">
-    Generated by Stuart's Caddy Planner · ${new Date().toLocaleDateString()} · © Stuart McNab Minton 2026. All rights reserved.
+    Generated by Caddy Planner · ${new Date().toLocaleDateString()} · © Stuart McNab Minton 2026. All rights reserved.
   </div></body></html>`;
 
   const win=window.open('','_blank');
@@ -1293,6 +1392,10 @@ function renderHistory(){
   const girHit=done.filter(h=>h.gir==='hit').length;
   const puttsSum=done.reduce((a,h)=>a+(h.putts||0),0);
   const avgPutts=done.length?puttsSum/done.length:0;
+  // Scrambling
+  const girMissAll=done.filter(h=>h.gir==='miss').length;
+  const scrambledAll=done.filter(h=>h.gir==='miss'&&h.scramble==='yes').length;
+  const scramblePctAll=girMissAll>0?Math.round(scrambledAll/girMissAll*100):null;
 
   document.getElementById('hist-agg-stats').innerHTML=`
     <div class="lbl" style="margin-bottom:.6rem;">Overall (${totalRounds} round${totalRounds>1?'s':''})</div>
@@ -1303,6 +1406,7 @@ function renderHistory(){
       <div class="stat-card"><div class="stat-val">${done.length?Math.round(girHit/done.length*100)+'%':'—'}</div><div class="stat-lbl">GIR%</div></div>
       <div class="stat-card"><div class="stat-val">${avgPutts.toFixed(1)}</div><div class="stat-lbl">Avg Putts/H</div></div>
       <div class="stat-card"><div class="stat-val">${fwL}L / ${fwR}R</div><div class="stat-lbl">FW Misses</div></div>
+      <div class="stat-card"><div class="stat-val">${scramblePctAll!==null?scramblePctAll+'%':'—'}</div><div class="stat-lbl">Scrambling%</div></div>
     </div>`;
 
   // Per-hole stats
@@ -2023,6 +2127,33 @@ function onMapTap(e){
 function destroyMap(){
   if(walkMap){ walkMap.remove(); walkMap=null; }
   greenMarker=null; tapMarker=null; playerMarker=null; walkMapOpen=false;
+}
+
+// ════════════════════════════════════════════════ HOLE OVERRIDE ══════════════
+function openOverride(){
+  const panel=document.getElementById('r-override-panel');
+  panel.style.display=panel.style.display==='none'?'block':'none';
+}
+function saveOverride(){
+  saveFields();
+  const parVal=document.getElementById('r-override-par').value;
+  const yardsVal=document.getElementById('r-override-yards').value;
+  const noteVal=document.getElementById('r-override-note').value.trim();
+  holeData[currentHole].overridePar=parVal?parseInt(parVal):null;
+  holeData[currentHole].overrideYards=yardsVal?parseInt(yardsVal):null;
+  holeData[currentHole].overrideNote=noteVal;
+  // Reset score to new effective par
+  holeData[currentHole].score=holeData[currentHole].overridePar||courses[activeCourseIdx].holes[currentHole].par;
+  document.getElementById('r-override-panel').style.display='none';
+  renderRound();
+}
+function clearOverride(){
+  holeData[currentHole].overridePar=null;
+  holeData[currentHole].overrideYards=null;
+  holeData[currentHole].overrideNote='';
+  holeData[currentHole].score=courses[activeCourseIdx].holes[currentHole].par;
+  document.getElementById('r-override-panel').style.display='none';
+  renderRound();
 }
 
 // ══════════════════════════════════════════════════════════ BOOT ══════════════
