@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<title>Stuart's Caddy Planner ⛳</title>
+<title>Caddy Planner ⛳</title>
 
 <!-- iOS PWA — makes it open as standalone app, no Safari bar -->
 <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -1172,7 +1172,7 @@ function renderScorecard(){
   const endDiv=document.getElementById('sc-end-btns');
   if(isComplete){
     endDiv.innerHTML=`
-      <button class="btn btn-primary" onclick="exportPDF(null)">📄 Export Round as PDF</button>
+      <button class="btn btn-primary" onclick="exportPDF(null)">📄 Download Round Report</button>
       <button class="btn btn-primary" onclick="newRound()">🔄 New Round</button>
       <button class="btn btn-secondary" onclick="saveAndHome()">🏠 Save &amp; Home</button>
       <button class="btn btn-secondary" onclick="guardedNav('course-setup')">🏌️ Manage Courses &amp; Strategies</button>
@@ -1180,7 +1180,7 @@ function renderScorecard(){
   } else {
     endDiv.innerHTML=`
       <button class="btn btn-primary" onclick="scorecardBack()">▶ Continue Round</button>
-      <button class="btn btn-secondary" onclick="exportPDF(null)">📄 Export Current Scorecard</button>
+      <button class="btn btn-secondary" onclick="exportPDF(null)">📄 Download Current Scorecard</button>
       <button class="btn btn-secondary" onclick="saveAndHome()">🏠 Save &amp; Home</button>`;
   }
 }
@@ -1379,7 +1379,7 @@ function exportPDF(histRecord){
   const blob=new Blob([html],{type:'text/html'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  const filename=`CaddyPlanner-${(courseName||'Round').replace(/\s+/g,'-')}-${date||'export'}.html`;
+  const filename=`CaddyPlanner-Report-${(courseName||'Round').replace(/\s+/g,'-')}-${date||'export'}.html`;
   a.href=url;
   a.download=filename;
   document.body.appendChild(a);
@@ -1643,7 +1643,7 @@ function renderHistory(){
         ${r.courseHandicap?`<div class="hist-stat">${r.courseHandicap} <span>CH</span></div>`:''}
         <div style="display:flex;gap:.4rem;margin-left:auto;">
           <button class="btn-sm" style="background:rgba(46,125,50,.2);border:1px solid rgba(67,160,71,.3);color:var(--accent);"
-            onclick="exportHistPDF(${r.id})">📄 PDF</button>
+            onclick="exportHistPDF(${r.id})">📄 Report</button>
           <button class="btn-sm" style="background:rgba(198,40,40,.15);border:1px solid rgba(198,40,40,.3);color:#ef9a9a;"
             onclick="deleteRound(${r.id})">🗑</button>
         </div>
