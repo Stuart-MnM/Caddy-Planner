@@ -383,6 +383,14 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
   </div>
   <div id="r-stableford-pts" style="font-size:.82rem;color:#f9a825;margin-top:-.5rem;margin-bottom:1rem;"></div>
 
+  <div class="sec">⚠️ Penalty Shots</div>
+  <div class="putts-row">
+    <button class="adj-btn" onclick="adjPenalty(-1)">−</button>
+    <div class="putts-num" id="r-penalty" style="color:#fb923c;">0</div>
+    <button class="adj-btn" onclick="adjPenalty(1)">+</button>
+    <div style="color:var(--muted);font-size:.82rem;">penalty shot(s)</div>
+  </div>
+
   <div class="sec">⛳ Putts</div>
   <div class="putts-row">
     <button class="adj-btn" onclick="adjPutts(-1)">−</button>
@@ -443,7 +451,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
   <table class="sc-table">
     <thead><tr>
       <th style="text-align:left;">#</th><th>Par</th><th>Score</th>
-      <th>Pts</th><th>FW</th><th>GIR</th><th>Putts</th><th>Strat</th>
+      <th>Pts</th><th>FW</th><th>GIR</th><th>Putts</th><th>Pen</th><th>Strat</th>
     </tr></thead>
     <tbody id="sc-tbody"></tbody>
     <tfoot id="sc-tfoot"></tfoot>
@@ -786,7 +794,7 @@ function startRound(){
     playerHI:playerHI,courseHandicap:getCourseHandicap(),
   };
   holeData=courses[activeCourseIdx].holes.map(h=>({
-    fw:null,gir:null,score:h.par,putts:2,sr:null,comment:'',completed:false,
+    fw:null,gir:null,score:h.par,putts:2,penalty:0,sr:null,comment:'',completed:false,
     scramble:null,
     overridePar:null,overrideYards:null,overrideNote:''
   }));
@@ -956,6 +964,7 @@ function renderRound(){
 
   renderScore();
   document.getElementById('r-putts').textContent=hd.putts;
+  document.getElementById('r-penalty').textContent=hd.penalty||0;
   document.getElementById('r-comment').value=hd.comment;
   renderSrHint(hd.sr);
   const isLast=currentHole===course.holes.length-1;
@@ -1007,6 +1016,7 @@ function setTog(type,val){
   }
 }
 function adjPutts(d){saveFields();holeData[currentHole].putts=Math.max(0,holeData[currentHole].putts+d);document.getElementById('r-putts').textContent=holeData[currentHole].putts;}
+function adjPenalty(d){saveFields();holeData[currentHole].penalty=Math.max(0,(holeData[currentHole].penalty||0)+d);document.getElementById('r-penalty').textContent=holeData[currentHole].penalty;}
 function adjScore(d){
   saveFields();
   const hd=holeData[currentHole];
@@ -1116,11 +1126,13 @@ function renderScorecard(){
   // Hole table — FIX 5b: unplayed holes show · not par score
   const srC={correct:'#4ade80',adjusted:'#facc15',wrong:'#f87171'};
   let grossTot=0,ptsTot=0,puttsTot=0,playedParTot=0;
+  let penTot=0;
   document.getElementById('sc-tbody').innerHTML=holes.map((h,i)=>{
     const d=holeData[i];
     const played=d.completed;
     const sc=d.score||h.par;
-    if(played){grossTot+=sc;playedParTot+=h.par;puttsTot+=d.putts||0;
+    const pen=d.penalty||0;
+    if(played){grossTot+=sc;playedParTot+=h.par;puttsTot+=d.putts||0;penTot+=pen;
       if(ch!==null){const p=stablefordPts(sc,h.par,h.si,ch);ptsTot+=p||0;}}
     const diff=sc-h.par;
     const scColor=diff<=-2?'#f9a825':diff===-1?'#4ade80':diff===0?'#e8f5e9':diff===1?'#fb923c':'#f87171';
@@ -1137,11 +1149,11 @@ function renderScorecard(){
       ${fwCell}
       <td>${!played?'<span style="color:#444">·</span>':d.gir==='hit'?'<span class="hit">✓</span>':d.gir==='miss'?'<span class="miss">✗</span>':'<span style="color:#444">·</span>'}</td>
       <td style="color:${played?'var(--accent)':'#444'}">${played?d.putts:'·'}</td>
+      <td style="color:${pen>0?'#fb923c':'#444'}">${played?(pen>0?pen:'—'):'·'}</td>
       <td>${d.sr?`<span class="sr-dot" style="background:${srC[d.sr]||'#555'}"></span>`:'<span style="color:#444">·</span>'}</td>
     </tr>`;
   }).join('');
   // Footer totals — only played holes
-  // Compute fw% and gir% for footer from the same totals used above
   const footFwPct = fwHoles>0 ? Math.round(fwHit/fwHoles*100)+'%' : '—';
   const footGirPct = doneCount>0 ? Math.round(girHit/doneCount*100)+'%' : '—';
   const footVsPar=grossTot-playedParTot;
@@ -1152,6 +1164,7 @@ function renderScorecard(){
     <td style="color:var(--accent);font-size:.78rem;padding:.5rem .3rem;">${footFwPct}</td>
     <td style="color:var(--accent);font-size:.78rem;padding:.5rem .3rem;">${footGirPct}</td>
     <td style="color:var(--accent);font-weight:700;padding:.5rem .3rem;">${doneCount?puttsTot:'—'}</td>
+    <td style="color:${penTot>0?'#fb923c':'#444'};font-weight:700;padding:.5rem .3rem;">${penTot>0?penTot:'—'}</td>
     <td></td>
   </tr>`;
 
@@ -1215,7 +1228,7 @@ function saveRoundToHistory(){
 }
 function newRound(){
   saveRoundToHistory();
-  holeData=courses[activeCourseIdx].holes.map(h=>({fw:null,gir:null,score:h.par,putts:2,sr:null,comment:'',completed:false,scramble:null,overridePar:null,overrideYards:null,overrideNote:''}));
+  holeData=courses[activeCourseIdx].holes.map(h=>({fw:null,gir:null,score:h.par,putts:2,penalty:0,sr:null,comment:'',completed:false,scramble:null,overridePar:null,overrideYards:null,overrideNote:''}));
   currentHole=0;stratAppliedHoles=new Set();roundSaved=false;renderRound();nav('round');
 }
 function saveAndHome(){saveRoundToHistory();initHome();nav('home');}
@@ -1269,13 +1282,16 @@ function exportPDF(histRecord){
   const srC={correct:'#27ae60',adjusted:'#d4ac0d',wrong:'#c0392b'};
   const parBg={3:'#3498db',4:'#82e000',5:'#e67e22'};
 
+  let totalPenalties=0;
   const rows=hd.map((d,i)=>{
     const h=courseHoles[i]||d;
     const par=h.par||d.par;const si=h.si||d.si;
+    const pen=d.penalty||0;
+    if(d.completed)totalPenalties+=pen;
     if(!d.completed)return `<tr style="background:${i%2===0?'#fff':'#f8fdf8'};color:#bbb;">
       <td style="padding:.4rem .5rem;font-weight:700;">${h.no||i+1}</td>
       <td style="text-align:center;padding:.4rem .5rem;"><span style="background:${parBg[par]||'#999'};color:#fff;border-radius:10px;padding:.1rem .45rem;font-size:.78rem;font-weight:700;">${par}</span></td>
-      <td colspan="8" style="text-align:center;padding:.4rem .5rem;font-size:.78rem;color:#ccc;">Not played</td></tr>`;
+      <td colspan="9" style="text-align:center;padding:.4rem .5rem;font-size:.78rem;color:#ccc;">Not played</td></tr>`;
     const sc=d.score||par;const diff=sc-par;
     const scC=diff<=-2?'#d4ac0d':diff===-1?'#27ae60':diff===0?'#222':diff===1?'#e67e22':'#c0392b';
     const pts=ch!==null?stablefordPts(sc,par,si,ch):null;
@@ -1290,8 +1306,9 @@ function exportPDF(histRecord){
       <td style="text-align:center;color:${fwTxt==='✓'?'#27ae60':fwTxt&&fwTxt!=='—'?'#c0392b':'#888'};padding:.4rem .5rem;">${fwTxt}</td>
       <td style="text-align:center;color:${d.gir==='hit'?'#27ae60':'#c0392b'};padding:.4rem .5rem;">${d.gir==='hit'?'✓':d.gir==='miss'?'✗':''}</td>
       <td style="text-align:center;padding:.4rem .5rem;">${d.putts||0}</td>
+      <td style="text-align:center;color:${pen>0?'#e67e22':'#888'};font-weight:${pen>0?'700':'400'};padding:.4rem .5rem;">${pen>0?pen:'—'}</td>
       <td style="text-align:center;color:${srC[d.sr]||'#ccc'};font-weight:600;padding:.4rem .5rem;">${srTxt}</td>
-      <td style="font-size:.73rem;color:#666;padding:.4rem .5rem;max-width:130px;">${d.comment||''}</td>
+      <td style="font-size:.73rem;color:#666;padding:.4rem .5rem;max-width:120px;">${d.comment||''}</td>
     </tr>`;
   }).join('');
 
@@ -1340,7 +1357,7 @@ function exportPDF(histRecord){
   </div>
   <table><thead><tr>
     <th>#</th><th>Par</th><th>Score</th><th>+/-</th><th>Pts</th>
-    <th>FW</th><th>GIR</th><th>Putts</th><th>Strat</th><th style="text-align:left;">Notes</th>
+    <th>FW</th><th>GIR</th><th>Putts</th><th>Pen</th><th>Strat</th><th style="text-align:left;">Notes</th>
   </tr></thead><tbody>${rows}</tbody>
   <tfoot><tr style="background:#e8f5e9;font-weight:700;">
     <td colspan="2" style="padding:.45rem;">Total (${playedCount} holes)</td>
@@ -1350,6 +1367,7 @@ function exportPDF(histRecord){
     <td style="text-align:center;padding:.45rem;">${fwPct!==null?fwPct+'%':'—'}</td>
     <td style="text-align:center;padding:.45rem;">${girPct!==null?girPct+'%':'—'}</td>
     <td style="text-align:center;padding:.45rem;">${totalPutts}</td>
+    <td style="text-align:center;padding:.45rem;color:${totalPenalties>0?'#e67e22':'#888'};">${totalPenalties>0?totalPenalties:'—'}</td>
     <td colspan="2"></td>
   </tr></tfoot></table>
   ${adjSection}
@@ -1357,9 +1375,17 @@ function exportPDF(histRecord){
     Generated by Caddy Planner · ${new Date().toLocaleDateString()} · © Stuart McNab Minton 2026. All rights reserved.
   </div></body></html>`;
 
-  const win=window.open('','_blank');
-  win.document.write(html);win.document.close();
-  setTimeout(()=>win.print(),400);
+  // Use a blob download link — avoids opening a new tab on iPhone which traps the user
+  const blob=new Blob([html],{type:'text/html'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const filename=`CaddyPlanner-${(courseName||'Round').replace(/\s+/g,'-')}-${date||'export'}.html`;
+  a.href=url;
+  a.download=filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
 }
 
 // ════════════════════════════════════════════════════════ HISTORY ═════════════
@@ -1615,8 +1641,12 @@ function renderHistory(){
         <div class="hist-stat">${r.gross} <span>gross</span></div>
         <div class="hist-stat" style="color:${vp<=0?'#4ade80':'#f87171'}">${vp===0?'E':vp>0?'+'+vp:vp} <span>vs par</span></div>
         ${r.courseHandicap?`<div class="hist-stat">${r.courseHandicap} <span>CH</span></div>`:''}
-        <button class="btn-sm" style="background:rgba(46,125,50,.2);border:1px solid rgba(67,160,71,.3);color:var(--accent);margin-left:auto;"
-          onclick="exportHistPDF(${r.id})">📄 Export PDF</button>
+        <div style="display:flex;gap:.4rem;margin-left:auto;">
+          <button class="btn-sm" style="background:rgba(46,125,50,.2);border:1px solid rgba(67,160,71,.3);color:var(--accent);"
+            onclick="exportHistPDF(${r.id})">📄 PDF</button>
+          <button class="btn-sm" style="background:rgba(198,40,40,.15);border:1px solid rgba(198,40,40,.3);color:#ef9a9a;"
+            onclick="deleteRound(${r.id})">🗑</button>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -1627,6 +1657,17 @@ function exportHistPDF(id){
   const r=histExportMap[id];
   if(!r){alert('Round data not found. Please re-open History and try again.');return;}
   exportPDF(r);
+}
+
+function deleteRound(id){
+  const r=histExportMap[id];
+  if(!r)return;
+  const vp=r.gross-(r.playedPar||r.totalPar);
+  const label=`${r.course} · ${r.date} · ${r.gross} gross (${vp===0?'E':vp>0?'+'+vp:vp})`;
+  if(!confirm(`Delete this round?\n\n${label}\n\nThis cannot be undone.`))return;
+  history=history.filter(x=>x.id!==id);
+  save();
+  renderHistory();
 }
 
 // ══════════════════════════════════════════════════ EXPORT / IMPORT ══════════
