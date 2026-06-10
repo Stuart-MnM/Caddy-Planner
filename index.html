@@ -171,8 +171,8 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
 <div id="home" class="screen active">
 <div class="home-wrap">
   <div style="font-size:3.2rem;margin-bottom:.3rem;">⛳</div>
-  <h1 class="home-title">Stuart's<br> Caddy Planner</h1>
-  <p class="home-sub">Timor Omnis Abesto<br> Course strategy. Hole by hole.</p>
+  <h1 class="home-title">Caddy Planner</h1>
+  <p class="home-sub">Course strategy. Hole by hole.</p>
   <div class="card home-card">
     <div class="lbl">Selected Course</div>
     <select id="home-course-sel" onchange="activeCourseIdx=parseInt(this.value);loadCourseRatingFields();updateCourseHandicap()"></select>
@@ -202,8 +202,16 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
       <div><div class="lbl">Slope Rating</div>
         <input type="number" id="home-slope" min="55" max="155" step="1" placeholder="e.g. 125" oninput="saveCourseRating();updateCourseHandicap()" style="text-align:center;"/></div>
     </div>
+    <div style="margin-top:.6rem;">
+      <div class="lbl">Course Par</div>
+      <div style="display:flex;align-items:center;gap:.6rem;">
+        <input type="number" id="home-par" min="60" max="80" step="1" placeholder="e.g. 72"
+               oninput="saveCourseRating();updateCourseHandicap()" style="text-align:center;max-width:120px;"/>
+        <span id="home-par-hint" style="font-size:.75rem;color:var(--muted);font-style:italic;"></span>
+      </div>
+    </div>
     <div id="home-ch-badge" class="ch-badge" style="display:none;"></div>
-    <div style="font-size:.72rem;color:var(--muted);margin-top:.5rem;">Rating &amp; Slope saved per course. HI saved globally.</div>
+    <div style="font-size:.72rem;color:var(--muted);margin-top:.5rem;">Rating, Slope &amp; Par saved per course. HI saved globally.</div>
   </div>
   <div class="home-btns">
     <button class="btn btn-primary" onclick="startRound()">Tee Off →</button>
@@ -232,12 +240,16 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
     </div>
     <div class="lbl">Course Name</div>
     <input type="text" id="cs-name" placeholder="Course name" style="margin-bottom:.75rem;"/>
-    <!-- Course rating & slope -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:.75rem;">
+    <!-- Course rating, slope and par -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem;margin-bottom:.75rem;">
       <div><div class="lbl">Course Rating</div>
         <input type="number" id="cs-cr" min="55" max="80" step="0.1" placeholder="e.g. 71.5" style="text-align:center;"/></div>
       <div><div class="lbl">Slope Rating</div>
         <input type="number" id="cs-slope" min="55" max="155" step="1" placeholder="e.g. 125" style="text-align:center;"/></div>
+      <div><div class="lbl">Course Par</div>
+        <input type="number" id="cs-par" min="60" max="80" step="1" placeholder="e.g. 72" style="text-align:center;"/>
+        <div id="cs-par-hint" style="font-size:.68rem;color:var(--muted);margin-top:.2rem;text-align:center;"></div>
+      </div>
     </div>
     <!-- GPS coordinates for satellite map -->
     <div style="font-size:.75rem;color:var(--muted);margin-bottom:.4rem;line-height:1.5;">
@@ -754,25 +766,56 @@ function loadCourseRatingFields(){
   const c=courses[activeCourseIdx];
   document.getElementById('home-cr').value=c.courseRating||'';
   document.getElementById('home-slope').value=c.slopeRating||'';
+  // Show stored par or calculated par from holes
+  const calcPar=c.holes.reduce((a,h)=>a+h.par,0);
+  const storedPar=c.coursePar||null;
+  document.getElementById('home-par').value=storedPar||calcPar||'';
+  const hint=document.getElementById('home-par-hint');
+  if(storedPar&&storedPar!==calcPar){
+    hint.textContent=`Hole pars add up to ${calcPar} — stored par is ${storedPar}`;
+    hint.style.color='#fb923c';
+  } else {
+    hint.textContent=`Calculated from hole pars: ${calcPar}`;
+    hint.style.color='';
+  }
 }
 function saveCourseRating(){
   courses[activeCourseIdx].courseRating=parseFloat(document.getElementById('home-cr').value)||null;
   courses[activeCourseIdx].slopeRating=parseInt(document.getElementById('home-slope').value)||null;
+  const parVal=parseInt(document.getElementById('home-par').value)||null;
+  courses[activeCourseIdx].coursePar=parVal;
   save();
 }
 function updateCourseHandicap(){
   playerHI=parseFloat(document.getElementById('home-hi').value)||0;
   save();
   const c=courses[activeCourseIdx];
-  const cr=c.courseRating,sl=c.slopeRating;
+  const cr=c.courseRating, sl=c.slopeRating;
   const badge=document.getElementById('home-ch-badge');
+  // Use stored coursePar if available, otherwise calculate from hole pars
+  const calcPar=c.holes.reduce((a,h)=>a+h.par,0);
+  const effectivePar=c.coursePar||calcPar;
   if(playerHI>0&&cr&&sl){
-    const totalPar=c.holes.reduce((a,h)=>a+h.par,0);
-    const ch=Math.round(playerHI*(sl/113)+(cr-totalPar));
+    const ch=Math.round(playerHI*(sl/113)+(cr-effectivePar));
     badge.style.display='block';
-    badge.innerHTML=`Course Handicap: <strong>${ch} shots</strong><br/><span style="font-size:.72rem;">HI ${playerHI} · CR ${cr} · Slope ${sl}</span>`;
+    badge.innerHTML=`Course Handicap: <strong>${ch} shots</strong><br/>
+      <span style="font-size:.72rem;">HI ${playerHI} · CR ${cr} · Slope ${sl} · Par ${effectivePar}</span>`;
     c._courseHandicap=ch;
-  } else {badge.style.display='none';c._courseHandicap=null;}
+  } else {
+    badge.style.display='none';
+    c._courseHandicap=null;
+  }
+  // Update par hint
+  const hint=document.getElementById('home-par-hint');
+  if(hint){
+    if(c.coursePar&&c.coursePar!==calcPar){
+      hint.textContent=`Hole pars add up to ${calcPar} — using stored par ${c.coursePar}`;
+      hint.style.color='#fb923c';
+    } else {
+      hint.textContent=`Calculated from hole pars: ${calcPar}`;
+      hint.style.color='var(--muted)';
+    }
+  }
 }
 function getCourseHandicap(){return courses[activeCourseIdx]._courseHandicap||null;}
 function stablefordPts(score,par,si,ch){
@@ -830,6 +873,12 @@ function csCourseChanged(){
   document.getElementById('cs-slope').value=c.slopeRating||'';
   document.getElementById('cs-lat').value=c.lat||'';
   document.getElementById('cs-lng').value=c.lng||'';
+  // Show stored par or calculated from holes
+  const calcPar=c.holes.reduce((a,h)=>a+h.par,0);
+  document.getElementById('cs-par').value=c.coursePar||calcPar||'';
+  const csHint=document.getElementById('cs-par-hint');
+  csHint.textContent=`Hole pars add up to ${calcPar}`;
+  csHint.style.color=c.coursePar&&c.coursePar!==calcPar?'#fb923c':'var(--muted)';
   renderCsHoles();
   document.getElementById('cs-strat-editor').style.display='none';
   document.getElementById('cs-paste-msg').textContent='';
@@ -873,6 +922,7 @@ function saveCourse(){
   // FIX 4: save rating/slope from Course Manager fields
   c.courseRating=parseFloat(document.getElementById('cs-cr').value)||null;
   c.slopeRating=parseInt(document.getElementById('cs-slope').value)||null;
+  c.coursePar=parseInt(document.getElementById('cs-par').value)||null;
   c.lat=parseFloat(document.getElementById('cs-lat').value)||null;
   c.lng=parseFloat(document.getElementById('cs-lng').value)||null;
   save();initHome();showMsg('cs-paste-msg','✅ Course saved.','#4ade80');
