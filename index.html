@@ -171,8 +171,8 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
 <div id="home" class="screen active">
 <div class="home-wrap">
   <div style="font-size:3.2rem;margin-bottom:.3rem;">⛳</div>
-  <h1 class="home-title">Stuart's<br> Caddy Planner</h1>
-  <p class="home-sub">Timor Omnis Abesto<br> Course strategy. Hole by hole.</p>
+  <h1 class="home-title">Stuart's<br/> Caddy Planner</h1>
+  <p class="home-sub">Timor Omnis Abesto<br/> Course strategy. Hole by hole.</p>
   <div class="card home-card">
     <div class="lbl">Selected Course</div>
     <select id="home-course-sel" onchange="activeCourseIdx=parseInt(this.value);loadCourseRatingFields();updateCourseHandicap()"></select>
@@ -182,8 +182,8 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
     <div class="spacer"></div>
     <div class="lbl">Round Type</div>
     <select id="home-type">
-      <option>Strokeplay</option><option>Stableford</option>
-      <option>Matchplay</option><option>Fourball Better Ball</option><option>Practice Round</option>
+      <option value="Strokeplay">Strokeplay</option>
+      <option value="Stableford">Stableford</option>
     </select>
     <div class="spacer"></div>
     <div class="lbl">Conditions / Wind</div>
@@ -963,12 +963,14 @@ function showMsg(id,msg,color){
 }
 
 // ══════════════════════════════════════════════════════════ ROUND ═════════════
+function isStableford(){ return roundMeta.type==='Stableford'; }
+
 function renderRound(){
   const course=courses[activeCourseIdx];
   const hole=course.holes[currentHole];
   const hd=holeData[currentHole];
+  const stableford=isStableford();
 
-  // Use override par/yards if set, otherwise course defaults
   const effectivePar   = hd.overridePar   || hole.par;
   const effectiveYards = hd.overrideYards || hole.yards;
 
@@ -1036,7 +1038,18 @@ function renderScore(){
   el.className='score-num '+(diff<=-2?'score-eagle':diff===-1?'score-birdie':diff===0?'score-par':diff===1?'score-bogey':diff===2?'score-double':'score-worse');
   const ch=getCourseHandicap();
   const pts=stablefordPts(sc,effectivePar,hole.si,ch);
-  document.getElementById('r-stableford-pts').textContent=pts!==null?`Stableford: ${pts} point${pts!==1?'s':''}  (CH ${ch})`:'';
+  const ptsEl=document.getElementById('r-stableford-pts');
+  if(pts!==null){
+    if(isStableford()){
+      // Stableford mode — show points prominently
+      const ptColor=pts>=3?'#4ade80':pts===2?'#e8f5e9':pts===1?'#fb923c':'#f87171';
+      ptsEl.innerHTML=`<span style="font-size:1.1rem;font-weight:700;color:${ptColor};">${pts} point${pts!==1?'s':''}</span> <span style="color:var(--muted);font-size:.78rem;">(CH ${ch})</span>`;
+    } else {
+      ptsEl.textContent=`Stableford: ${pts} point${pts!==1?'s':''}  (CH ${ch})`;
+    }
+  } else {
+    ptsEl.textContent='';
+  }
 }
 function renderTogs(type,activeVal){
   const ids={fw:'r-fw-togs',gir:'r-gir-togs',sr:'r-sr-togs',scramble:'r-scramble-togs'};
@@ -1093,7 +1106,7 @@ function renderScorecard(){
   const holes=course.holes;
   const isComplete=holeData.every(h=>h.completed);
   const ch=roundMeta.courseHandicap;
-  document.getElementById('sc-title').textContent=isComplete?'Round Complete':'Scorecard';
+  document.getElementById('sc-title').textContent=isComplete?(roundMeta.type==='Stableford'?'Stableford Complete':'Round Complete'):(roundMeta.type==='Stableford'?'Stableford Scorecard':'Scorecard');
   document.getElementById('sc-meta').textContent=`${course.name} · ${roundMeta.date} · ${roundMeta.type}${roundMeta.playerHI?' · HI '+roundMeta.playerHI:''}`;
   document.getElementById('sc-cond').textContent=roundMeta.conditions?'🌬 '+roundMeta.conditions:'';
   document.getElementById('sc-back').textContent=scReturnScreen==='round'?'← Back to Round':'← Back';
@@ -1123,11 +1136,19 @@ function renderScorecard(){
     const p=stablefordPts(h.score||effectivePar,effectivePar,holes[idx].si,ch);
     return a+(p||0);},0):null;
 
-  document.getElementById('sc-stats').innerHTML=`
-    <div class="stat-card"><div class="stat-val">${doneCount>0?gross:'—'}</div><div class="stat-lbl">Gross (played)</div></div>
+  const stableford=roundMeta.type==='Stableford';
+  document.getElementById('sc-stats').innerHTML = stableford ? `
+    <div class="stat-card" style="border-color:rgba(249,168,37,.4);"><div class="stat-val" style="color:#f9a825;">${totalPts!==null?totalPts:'—'}</div><div class="stat-lbl">Stableford Pts</div></div>
+    <div class="stat-card"><div class="stat-val">${doneCount>0?gross:'—'}</div><div class="stat-lbl">Gross Score</div></div>
+    <div class="stat-card"><div class="stat-val">${doneCount>0?(vsPar===0?'E':vsPar>0?'+'+vsPar:vsPar):'—'}</div><div class="stat-lbl">vs Par</div></div>
+    <div class="stat-card"><div class="stat-val">${putts||'—'}</div><div class="stat-lbl">Putts</div></div>
+    <div class="stat-card"><div class="stat-val">${fwHoles?Math.round(fwHit/fwHoles*100)+'%':'—'}</div><div class="stat-lbl">Fairways Hit</div></div>
+    <div class="stat-card"><div class="stat-val">${doneCount?Math.round(girHit/doneCount*100)+'%':'—'}</div><div class="stat-lbl">GIR</div></div>
+    <div class="stat-card"><div class="stat-val">${scramblePct!==null?scramblePct+'%':'—'}</div><div class="stat-lbl">Scrambling</div></div>` : `
+    <div class="stat-card"><div class="stat-val">${doneCount>0?gross:'—'}</div><div class="stat-lbl">Gross Score</div></div>
     <div class="stat-card"><div class="stat-val">${doneCount>0?(vsPar===0?'E':vsPar>0?'+'+vsPar:vsPar):'—'}</div><div class="stat-lbl">vs Par</div></div>
     <div class="stat-card"><div class="stat-val">${totalPts!==null?totalPts:'—'}</div><div class="stat-lbl">Stableford Pts</div></div>
-    <div class="stat-card"><div class="stat-val">${putts||'—'}</div><div class="stat-lbl">Putts (played)</div></div>
+    <div class="stat-card"><div class="stat-val">${putts||'—'}</div><div class="stat-lbl">Putts</div></div>
     <div class="stat-card"><div class="stat-val">${fwHoles?Math.round(fwHit/fwHoles*100)+'%':'—'}</div><div class="stat-lbl">Fairways Hit</div></div>
     <div class="stat-card"><div class="stat-val">${doneCount?Math.round(girHit/doneCount*100)+'%':'—'}</div><div class="stat-lbl">GIR</div></div>
     <div class="stat-card"><div class="stat-val">${scramblePct!==null?scramblePct+'%':'—'}</div><div class="stat-lbl">Scrambling</div></div>`;
