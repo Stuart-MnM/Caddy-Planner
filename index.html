@@ -696,6 +696,49 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
 </div>
 </div>
 
+<!-- ══ ROUND VIEW (read-only history round) ════════════════════════════════════ -->
+<div id="roundview" class="screen">
+<div class="wrap">
+  <div class="back-link" onclick="nav('history')">← Back to History</div>
+  <div style="font-size:1.8rem;margin-bottom:.15rem;">📋</div>
+  <h2 id="rv-title" style="color:var(--accent);margin-bottom:.2rem;"></h2>
+  <div style="color:var(--muted);font-size:.85rem;font-style:italic;" id="rv-meta"></div>
+  <div style="color:#6a9970;font-size:.8rem;margin-top:.15rem;margin-bottom:.5rem;" id="rv-cond"></div>
+  <div id="rv-notes" style="background:rgba(249,168,37,.07);border:1px solid rgba(249,168,37,.15);
+       border-radius:8px;padding:.6rem .75rem;font-size:.82rem;color:#ffe082;
+       margin-bottom:.75rem;display:none;"></div>
+
+  <div class="stat-grid" id="rv-stats"></div>
+
+  <!-- Override summary if any -->
+  <div id="rv-overrides" style="display:none;" class="adj-banner" style="background:rgba(249,168,37,.08);">
+    <div class="adj-banner-title">⚙ Hole Overrides This Round</div>
+    <div id="rv-overrides-list"></div>
+  </div>
+
+  <!-- Hole by hole table -->
+  <div class="lbl" style="margin-bottom:.4rem;">Hole by Hole</div>
+  <table class="sc-table">
+    <thead><tr>
+      <th style="text-align:left;">#</th><th>Par</th><th>Score</th>
+      <th>Pts</th><th>FW</th><th>GIR</th><th>Putts</th><th>Pen</th><th>Strat</th>
+    </tr></thead>
+    <tbody id="rv-tbody"></tbody>
+    <tfoot id="rv-tfoot"></tfoot>
+  </table>
+
+  <!-- Strategy notes per hole (if any) -->
+  <div id="rv-hole-notes" style="margin-top:1rem;display:none;">
+    <div class="lbl" style="margin-bottom:.5rem;">Hole Notes</div>
+    <div id="rv-hole-notes-list"></div>
+  </div>
+
+  <div class="spacer"></div>
+  <button class="btn btn-secondary" id="rv-export-btn" onclick="">📄 Download Report</button>
+  <button class="btn btn-secondary" onclick="nav('history')">← Back to History</button>
+</div>
+</div>
+
 <script>
 // ══════════════════════════════════════════════════════════ DATA ═════════════
 const DS={name:"Desert Springs Golf Club",lat:37.3353,lng:-1.9298,holes:[
@@ -741,6 +784,7 @@ function nav(id){
   if(id==='history')renderHistory();
   if(id==='home')initHome();
   if(id==='walk')initWalk();
+  if(id==='roundview'){} // rendered before nav is called
   if(id==='exportimport'){
     // reset import panel when opening
     document.getElementById('imp-file').value='';
@@ -1201,20 +1245,26 @@ function renderScorecard(){
   document.getElementById('sc-tbody').innerHTML=holes.map((h,i)=>{
     const d=holeData[i];
     const played=d.completed;
-    const sc=d.score||h.par;
+    const effectivePar=d.overridePar||h.par;
+    const hasOverride=!!d.overridePar;
+    const sc=d.score||effectivePar;
     const pen=d.penalty||0;
-    if(played){grossTot+=sc;playedParTot+=h.par;puttsTot+=d.putts||0;penTot+=pen;
-      if(ch!==null){const p=stablefordPts(sc,h.par,h.si,ch);ptsTot+=p||0;}}
-    const diff=sc-h.par;
+    if(played){grossTot+=sc;playedParTot+=effectivePar;puttsTot+=d.putts||0;penTot+=pen;
+      if(ch!==null){const p=stablefordPts(sc,effectivePar,h.si,ch);ptsTot+=p||0;}}
+    const diff=sc-effectivePar;
     const scColor=diff<=-2?'#f9a825':diff===-1?'#4ade80':diff===0?'#e8f5e9':diff===1?'#fb923c':'#f87171';
-    const pts=played&&ch!==null?stablefordPts(sc,h.par,h.si,ch):null;
-    const fwCell=h.par===3?'<td style="color:#555;">—</td>':`<td>${
+    const pts=played&&ch!==null?stablefordPts(sc,effectivePar,h.si,ch):null;
+    const parClass=effectivePar===3?'par3':effectivePar===4?'par4':'par5';
+    const fwCell=effectivePar===3?'<td style="color:#555;">—</td>':`<td>${
       !played?'<span style="color:#444">·</span>':
       d.fw==='hit'?'<span class="hit">✓</span>':d.fw==='miss-left'?'<span class="ml">L</span>':
       d.fw==='miss-right'?'<span class="mr">R</span>':'<span style="color:#444">·</span>'}</td>`;
     return `<tr onclick="${played?`jumpFromSc(${i})`:''}">
       <td class="td-hole">${h.no}</td>
-      <td><span class="td-par ${h.par===3?'par3':h.par===4?'par4':'par5'}">${h.par}</span></td>
+      <td>
+        <span class="td-par ${parClass}">${effectivePar}${hasOverride?'⚙':''}</span>
+        ${hasOverride?`<div style="font-size:.6rem;color:#ffe082;margin-top:.1rem;">${d.overrideNote||'Override'}</div>`:''}
+      </td>
       <td style="color:${played?scColor:'#444'};font-weight:${played?'600':'400'};">${played?sc:'·'}</td>
       <td style="color:#f9a825;">${played&&pts!==null?pts:'·'}</td>
       ${fwCell}
@@ -1288,7 +1338,15 @@ function saveRoundToHistory(){
     id:Date.now(),course:course.name,date:roundMeta.date,type:roundMeta.type,
     conditions:roundMeta.conditions,playerHI:roundMeta.playerHI,
     courseHandicap:roundMeta.courseHandicap,
-    holes:holeData.map((d,i)=>({...d,par:holes[i].par,no:holes[i].no,si:holes[i].si,yards:holes[i].yards,strategy:holes[i].strategy})),
+    holes:holeData.map((d,i)=>({
+      ...d,
+      par:holes[i].par,              // original course par always preserved
+      effectivePar:d.overridePar||holes[i].par,  // what was actually played against
+      no:holes[i].no,
+      si:holes[i].si,
+      yards:holes[i].yards,
+      strategy:holes[i].strategy
+    })),
     gross:holeData.filter(h=>h.completed).reduce((a,h,_,arr)=>{const idx=holeData.indexOf(h);return a+(h.score||holes[idx].par);},0),
     totalPar:holes.reduce((a,h)=>a+h.par,0),
     playedPar:holes.filter((h,i)=>holeData[i].completed).reduce((a,h)=>a+h.par,0),
@@ -1330,21 +1388,21 @@ function exportPDF(histRecord){
   const hd=isHist?r.holes:holeData;
   const courseHoles=isHist?r.holes:courses[activeCourseIdx].holes;
 
-  // ── Compute all stats from a single consistent loop over played holes ──
+  // ── Compute all stats using effectivePar (override if set) ──
   let gross=0,playedPar=0,fwHoleCount=0,fwHitCount=0,girHitCount=0,totalPutts=0,totalPts=0,playedCount=0;
   hd.forEach((d,i)=>{
     if(!d.completed)return;
     const h=courseHoles[i]||d;
-    const par=h.par||d.par;
+    const effectivePar=d.overridePar||(h.par||d.par);
     const si=h.si||d.si;
-    const sc=d.score||par;
+    const sc=d.score||effectivePar;
     gross+=sc;
-    playedPar+=par;
+    playedPar+=effectivePar;
     playedCount++;
     totalPutts+=d.putts||0;
-    if(par!==3){fwHoleCount++;if(d.fw==='hit')fwHitCount++;}
+    if(effectivePar!==3){fwHoleCount++;if(d.fw==='hit')fwHitCount++;}
     if(d.gir==='hit')girHitCount++;
-    if(ch!==null){const p=stablefordPts(sc,par,si,ch);totalPts+=p||0;}
+    if(ch!==null){const p=stablefordPts(sc,effectivePar,si,ch);totalPts+=p||0;}
   });
   const vsPar=gross-playedPar;
   const fwPct=fwHoleCount?Math.round(fwHitCount/fwHoleCount*100):null;
@@ -1356,21 +1414,26 @@ function exportPDF(histRecord){
   let totalPenalties=0;
   const rows=hd.map((d,i)=>{
     const h=courseHoles[i]||d;
-    const par=h.par||d.par;const si=h.si||d.si;
+    const effectivePar=d.overridePar||(h.par||d.par);
+    const hasOverride=!!d.overridePar;
+    const si=h.si||d.si;
     const pen=d.penalty||0;
     if(d.completed)totalPenalties+=pen;
     if(!d.completed)return `<tr style="background:${i%2===0?'#fff':'#f8fdf8'};color:#bbb;">
       <td style="padding:.4rem .5rem;font-weight:700;">${h.no||i+1}</td>
-      <td style="text-align:center;padding:.4rem .5rem;"><span style="background:${parBg[par]||'#999'};color:#fff;border-radius:10px;padding:.1rem .45rem;font-size:.78rem;font-weight:700;">${par}</span></td>
+      <td style="text-align:center;padding:.4rem .5rem;"><span style="background:${parBg[effectivePar]||'#999'};color:#fff;border-radius:10px;padding:.1rem .45rem;font-size:.78rem;font-weight:700;">${effectivePar}</span></td>
       <td colspan="9" style="text-align:center;padding:.4rem .5rem;font-size:.78rem;color:#ccc;">Not played</td></tr>`;
-    const sc=d.score||par;const diff=sc-par;
+    const sc=d.score||effectivePar;const diff=sc-effectivePar;
     const scC=diff<=-2?'#d4ac0d':diff===-1?'#27ae60':diff===0?'#222':diff===1?'#e67e22':'#c0392b';
-    const pts=ch!==null?stablefordPts(sc,par,si,ch):null;
-    const fwTxt=par===3?'—':d.fw==='hit'?'✓':d.fw==='miss-left'?'L':d.fw==='miss-right'?'R':'';
+    const pts=ch!==null?stablefordPts(sc,effectivePar,si,ch):null;
+    const fwTxt=effectivePar===3?'—':d.fw==='hit'?'✓':d.fw==='miss-left'?'L':d.fw==='miss-right'?'R':'';
     const srTxt=d.sr==='correct'?'✓':d.sr==='adjusted'?'Adj':d.sr==='wrong'?'✗':'';
     return `<tr style="background:${i%2===0?'#fff':'#f8fdf8'};">
       <td style="padding:.4rem .5rem;font-weight:700;color:#555;">${h.no||i+1}</td>
-      <td style="text-align:center;padding:.4rem .5rem;"><span style="background:${parBg[par]||'#999'};color:#fff;border-radius:10px;padding:.1rem .45rem;font-size:.78rem;font-weight:700;">${par}</span></td>
+      <td style="text-align:center;padding:.4rem .5rem;">
+        <span style="background:${parBg[effectivePar]||'#999'};color:#fff;border-radius:10px;padding:.1rem .45rem;font-size:.78rem;font-weight:700;">${effectivePar}${hasOverride?'⚙':''}</span>
+        ${hasOverride?`<div style="font-size:.65rem;color:#e67e22;margin-top:.1rem;">${d.overrideNote||'Override'}</div>`:''}
+      </td>
       <td style="text-align:center;font-weight:700;color:${scC};padding:.4rem .5rem;">${sc}</td>
       <td style="text-align:center;color:#888;padding:.4rem .5rem;">${diff===0?'E':diff>0?'+'+diff:diff}</td>
       <td style="text-align:center;color:#d4ac0d;font-weight:600;padding:.4rem .5rem;">${pts!==null?pts:'—'}</td>
@@ -1384,6 +1447,21 @@ function exportPDF(histRecord){
   }).join('');
 
   const adjReview=hd.map((d,i)=>({d,h:courseHoles[i]||d,i})).filter(x=>x.d.sr&&x.d.comment.trim());
+  const overrideReview=hd.map((d,i)=>({d,h:courseHoles[i]||d})).filter(x=>x.d.overridePar);
+  const overrideSection=overrideReview.length?`
+    <div style="margin-top:1.25rem;padding:.75rem;background:#fffde7;border-left:3px solid #f9a825;border-radius:4px;">
+      <strong style="color:#e65100;">⚙ Hole Overrides Applied This Round</strong>
+      <table style="width:100%;margin-top:.5rem;font-size:.82rem;border-collapse:collapse;">
+        <tr style="color:#888;"><th style="text-align:left;padding:.2rem .4rem;">Hole</th><th style="text-align:center;padding:.2rem .4rem;">Course Par</th><th style="text-align:center;padding:.2rem .4rem;">Played As</th><th style="text-align:left;padding:.2rem .4rem;">Note</th></tr>
+        ${overrideReview.map(({d,h})=>`
+          <tr>
+            <td style="padding:.2rem .4rem;font-weight:700;">${h.no||'?'}</td>
+            <td style="text-align:center;padding:.2rem .4rem;">${h.par||d.par}</td>
+            <td style="text-align:center;padding:.2rem .4rem;font-weight:700;color:#e65100;">${d.overridePar}</td>
+            <td style="padding:.2rem .4rem;color:#555;">${d.overrideNote||'—'}</td>
+          </tr>`).join('')}
+      </table>
+    </div>`:'';
   const adjSection=adjReview.length?`
     <div style="margin-top:1.5rem;">
       <h3 style="font-family:Georgia,serif;color:#2e7d32;font-size:1rem;margin-bottom:.75rem;border-bottom:2px solid #e0f0e0;padding-bottom:.4rem;">📝 Strategy Review Notes</h3>
@@ -1441,6 +1519,7 @@ function exportPDF(histRecord){
     <td style="text-align:center;padding:.45rem;color:${totalPenalties>0?'#e67e22':'#888'};">${totalPenalties>0?totalPenalties:'—'}</td>
     <td colspan="2"></td>
   </tr></tfoot></table>
+  ${overrideSection}
   ${adjSection}
   <div style="margin-top:1.5rem;font-size:.7rem;color:#aaa;border-top:1px solid #eee;padding-top:.6rem;">
     Generated by Caddy Planner · ${new Date().toLocaleDateString()} · © Stuart McNab Minton 2026. All rights reserved.
@@ -1712,8 +1791,10 @@ function renderHistory(){
         <div class="hist-stat">${r.gross} <span>gross</span></div>
         <div class="hist-stat" style="color:${vp<=0?'#4ade80':'#f87171'}">${vp===0?'E':vp>0?'+'+vp:vp} <span>vs par</span></div>
         ${r.courseHandicap?`<div class="hist-stat">${r.courseHandicap} <span>CH</span></div>`:''}
-        <div style="display:flex;gap:.4rem;margin-left:auto;">
+        <div style="display:flex;gap:.4rem;margin-left:auto;flex-wrap:wrap;">
           <button class="btn-sm" style="background:rgba(46,125,50,.2);border:1px solid rgba(67,160,71,.3);color:var(--accent);"
+            onclick="viewHistRound(${r.id})">👁 View</button>
+          <button class="btn-sm" style="background:rgba(30,60,120,.2);border:1px solid rgba(60,100,220,.3);color:#90caf9;"
             onclick="exportHistPDF(${r.id})">📄 Report</button>
           <button class="btn-sm" style="background:rgba(198,40,40,.15);border:1px solid rgba(198,40,40,.3);color:#ef9a9a;"
             onclick="deleteRound(${r.id})">🗑</button>
@@ -1728,6 +1809,137 @@ function exportHistPDF(id){
   const r=histExportMap[id];
   if(!r){alert('Round data not found. Please re-open History and try again.');return;}
   exportPDF(r);
+}
+
+function viewHistRound(id){
+  const r=histExportMap[id];
+  if(!r){alert('Round data not found.');return;}
+  renderRoundView(r);
+  nav('roundview');
+}
+
+function renderRoundView(r){
+  const ch=r.courseHandicap||null;
+  const hd=r.holes;
+  const isStab=r.type==='Stableford';
+
+  document.getElementById('rv-title').textContent=r.course;
+  document.getElementById('rv-meta').textContent=
+    `${r.date} · ${r.type}${r.playerHI?' · HI '+r.playerHI:''}${ch?' · CH '+ch:''}`;
+  document.getElementById('rv-cond').textContent=r.conditions?'🌬 '+r.conditions:'';
+
+  // Pre-round notes
+  const notesEl=document.getElementById('rv-notes');
+  if(r.notes&&r.notes.trim()){notesEl.style.display='block';notesEl.textContent='📋 '+r.notes;}
+  else notesEl.style.display='none';
+
+  // Stats
+  const done=hd.filter(h=>h.completed);
+  const fwH=done.filter(h=>(h.effectivePar||h.par)!==3);
+  const fwHit=fwH.filter(h=>h.fw==='hit').length;
+  const girHit=done.filter(h=>h.gir==='hit').length;
+  const putts=done.reduce((a,h)=>a+(h.putts||0),0);
+  const gross=done.reduce((a,h)=>a+(h.score||(h.effectivePar||h.par)),0);
+  const playedPar=done.reduce((a,h)=>a+(h.effectivePar||h.par),0);
+  const vsPar=gross-playedPar;
+  const girMiss=done.filter(h=>h.gir==='miss').length;
+  const scrambled=done.filter(h=>h.gir==='miss'&&h.scramble==='yes').length;
+  const scramblePct=girMiss>0?Math.round(scrambled/girMiss*100):null;
+  const totalPts=ch!==null?done.reduce((a,h)=>{
+    const ep=h.effectivePar||h.par;
+    return a+(stablefordPts(h.score||ep,ep,h.si,ch)||0);},0):null;
+
+  const statCards=isStab?`
+    <div class="stat-card" style="border-color:rgba(249,168,37,.4);"><div class="stat-val" style="color:#f9a825;">${totalPts!==null?totalPts:'—'}</div><div class="stat-lbl">Stableford Pts</div></div>
+    <div class="stat-card"><div class="stat-val">${gross}</div><div class="stat-lbl">Gross Score</div></div>
+    <div class="stat-card"><div class="stat-val">${vsPar===0?'E':vsPar>0?'+'+vsPar:vsPar}</div><div class="stat-lbl">vs Par</div></div>
+    <div class="stat-card"><div class="stat-val">${putts}</div><div class="stat-lbl">Putts</div></div>
+    <div class="stat-card"><div class="stat-val">${fwH.length?Math.round(fwHit/fwH.length*100)+'%':'—'}</div><div class="stat-lbl">Fairways</div></div>
+    <div class="stat-card"><div class="stat-val">${done.length?Math.round(girHit/done.length*100)+'%':'—'}</div><div class="stat-lbl">GIR</div></div>
+    <div class="stat-card"><div class="stat-val">${scramblePct!==null?scramblePct+'%':'—'}</div><div class="stat-lbl">Scrambling</div></div>`:`
+    <div class="stat-card"><div class="stat-val">${gross}</div><div class="stat-lbl">Gross Score</div></div>
+    <div class="stat-card"><div class="stat-val">${vsPar===0?'E':vsPar>0?'+'+vsPar:vsPar}</div><div class="stat-lbl">vs Par</div></div>
+    <div class="stat-card"><div class="stat-val">${totalPts!==null?totalPts:'—'}</div><div class="stat-lbl">Stableford Pts</div></div>
+    <div class="stat-card"><div class="stat-val">${putts}</div><div class="stat-lbl">Putts</div></div>
+    <div class="stat-card"><div class="stat-val">${fwH.length?Math.round(fwHit/fwH.length*100)+'%':'—'}</div><div class="stat-lbl">Fairways</div></div>
+    <div class="stat-card"><div class="stat-val">${done.length?Math.round(girHit/done.length*100)+'%':'—'}</div><div class="stat-lbl">GIR</div></div>
+    <div class="stat-card"><div class="stat-val">${scramblePct!==null?scramblePct+'%':'—'}</div><div class="stat-lbl">Scrambling</div></div>`;
+  document.getElementById('rv-stats').innerHTML=statCards;
+
+  // Override panel
+  const overrides=hd.filter(h=>h.overridePar);
+  const ovPanel=document.getElementById('rv-overrides');
+  if(overrides.length){
+    ovPanel.style.display='block';
+    document.getElementById('rv-overrides-list').innerHTML=overrides.map(h=>
+      `<div style="font-size:.82rem;color:#ffe0b2;margin-bottom:.3rem;">
+        <strong>Hole ${h.no}</strong> — played as Par ${h.overridePar} (course par ${h.par})
+        ${h.overrideNote?` · <em>${h.overrideNote}</em>`:''}
+      </div>`).join('');
+  } else ovPanel.style.display='none';
+
+  // Hole table
+  const srC={correct:'#4ade80',adjusted:'#facc15',wrong:'#f87171'};
+  let grossTot=0,ptsTot=0,puttsTot=0,penTot=0,playedParTot=0;
+  document.getElementById('rv-tbody').innerHTML=hd.map((d,i)=>{
+    const ep=d.effectivePar||d.par;
+    const hasOv=!!d.overridePar;
+    const sc=d.score||ep;
+    const pen=d.penalty||0;
+    if(d.completed){grossTot+=sc;playedParTot+=ep;puttsTot+=d.putts||0;penTot+=pen;
+      if(ch!==null){const p=stablefordPts(sc,ep,d.si,ch);ptsTot+=p||0;}}
+    const diff=sc-ep;
+    const scColor=diff<=-2?'#f9a825':diff===-1?'#4ade80':diff===0?'#e8f5e9':diff===1?'#fb923c':'#f87171';
+    const pts=d.completed&&ch!==null?stablefordPts(sc,ep,d.si,ch):null;
+    const parClass=ep===3?'par3':ep===4?'par4':'par5';
+    const fwCell=ep===3?'<td style="color:#555;">—</td>':`<td>${
+      !d.completed?'<span style="color:#444">·</span>':
+      d.fw==='hit'?'<span class="hit">✓</span>':d.fw==='miss-left'?'<span class="ml">L</span>':
+      d.fw==='miss-right'?'<span class="mr">R</span>':'<span style="color:#444">·</span>'}</td>`;
+    return `<tr>
+      <td class="td-hole">${d.no||i+1}</td>
+      <td>
+        <span class="td-par ${parClass}">${ep}${hasOv?'⚙':''}</span>
+        ${hasOv?`<div style="font-size:.6rem;color:#ffe082;">${d.overrideNote||''}</div>`:''}
+      </td>
+      <td style="color:${d.completed?scColor:'#444'};font-weight:${d.completed?'600':'400'};">${d.completed?sc:'·'}</td>
+      <td style="color:#f9a825;">${d.completed&&pts!==null?pts:'·'}</td>
+      ${fwCell}
+      <td>${!d.completed?'<span style="color:#444">·</span>':d.gir==='hit'?'<span class="hit">✓</span>':d.gir==='miss'?'<span class="miss">✗</span>':'<span style="color:#444">·</span>'}</td>
+      <td style="color:${d.completed?'var(--accent)':'#444'}">${d.completed?d.putts:'·'}</td>
+      <td style="color:${pen>0?'#fb923c':'#444'}">${d.completed?(pen>0?pen:'—'):'·'}</td>
+      <td>${d.sr?`<span class="sr-dot" style="background:${srC[d.sr]||'#555'}"></span>`:'<span style="color:#444">·</span>'}</td>
+    </tr>`;
+  }).join('');
+
+  // Footer
+  const footVsPar=grossTot-playedParTot;
+  document.getElementById('rv-tfoot').innerHTML=`<tr style="border-top:2px solid rgba(255,255,255,.2);">
+    <td colspan="2" style="text-align:left;color:var(--muted);font-size:.75rem;padding:.5rem .3rem;">TOTAL (${done.length} holes)</td>
+    <td style="font-weight:700;color:var(--accent);padding:.5rem .3rem;">${grossTot}</td>
+    <td style="color:#f9a825;font-weight:700;padding:.5rem .3rem;">${ch!==null?ptsTot:'—'}</td>
+    <td style="color:var(--accent);font-size:.78rem;padding:.5rem .3rem;">${fwH.length?Math.round(fwHit/fwH.length*100)+'%':'—'}</td>
+    <td style="color:var(--accent);font-size:.78rem;padding:.5rem .3rem;">${done.length?Math.round(girHit/done.length*100)+'%':'—'}</td>
+    <td style="color:var(--accent);font-weight:700;padding:.5rem .3rem;">${puttsTot}</td>
+    <td style="color:${penTot>0?'#fb923c':'#444'};font-weight:700;padding:.5rem .3rem;">${penTot>0?penTot:'—'}</td>
+    <td></td>
+  </tr>`;
+
+  // Hole notes
+  const holesWithNotes=hd.filter(h=>h.comment&&h.comment.trim());
+  const notesPanel=document.getElementById('rv-hole-notes');
+  if(holesWithNotes.length){
+    notesPanel.style.display='block';
+    document.getElementById('rv-hole-notes-list').innerHTML=holesWithNotes.map(h=>
+      `<div style="margin-bottom:.6rem;padding:.6rem;background:var(--faint);border-radius:8px;
+                   border-left:3px solid var(--greenlt);">
+        <div style="font-size:.75rem;color:var(--muted);margin-bottom:.2rem;">Hole ${h.no} (Par ${h.effectivePar||h.par})</div>
+        <div style="font-size:.85rem;color:var(--text);">${h.comment}</div>
+       </div>`).join('');
+  } else notesPanel.style.display='none';
+
+  // Wire up the export button for this specific round
+  document.getElementById('rv-export-btn').onclick=()=>exportPDF(r);
 }
 
 function deleteRound(id){
