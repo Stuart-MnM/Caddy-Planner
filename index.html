@@ -319,11 +319,12 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
       <div class="yards-si" id="r-yards-si"></div>
       <div id="r-stroke-allowance" style="color:#f9a825;font-size:.78rem;margin-top:.1rem;"></div>
     </div>
-    <div style="margin-left:auto;align-self:flex-start;padding-top:.3rem;">
+    <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:.4rem;">
       <button onclick="openOverride()"
         style="font-size:.72rem;color:var(--muted);background:none;
                border:1px solid rgba(255,255,255,.1);border-radius:6px;
                padding:.28rem .55rem;cursor:pointer;">⚙ Override</button>
+      <div id="r-running-totals" style="text-align:right;line-height:1.3;"></div>
     </div>
   </div>
 
@@ -386,6 +387,14 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
     </div>
   </div>
 
+  <div class="sec">🏖️ Bunker Visits</div>
+  <div class="putts-row">
+    <button class="adj-btn" onclick="adjBunker(-1)">−</button>
+    <div class="putts-num" id="r-bunker" style="color:#fbbf24;">0</div>
+    <button class="adj-btn" onclick="adjBunker(1)">+</button>
+    <div style="color:var(--muted);font-size:.82rem;">bunker(s) — no penalty, just sand</div>
+  </div>
+
   <div class="sec">🏅 Gross Score</div>
   <div class="score-row">
     <button class="adj-btn" onclick="adjScore(-1)">−</button>
@@ -401,6 +410,21 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
     <div class="putts-num" id="r-penalty" style="color:#fb923c;">0</div>
     <button class="adj-btn" onclick="adjPenalty(1)">+</button>
     <div style="color:var(--muted);font-size:.82rem;">penalty shot(s)</div>
+  </div>
+
+  <!-- Penalty reason selector — only shown when penalties > 0 -->
+  <div id="r-penalty-reasons" style="display:none;margin-bottom:1rem;">
+    <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem;">
+      Reason(s) for penalty
+    </div>
+    <div class="tog-row" id="r-penalty-reason-togs" style="flex-wrap:wrap;">
+      <button class="tog" data-val="water" onclick="togglePenaltyReason('water')" style="flex:1 1 45%;">🌊 Water</button>
+      <button class="tog" data-val="lost" onclick="togglePenaltyReason('lost')" style="flex:1 1 45%;">🌳 Lost Ball</button>
+      <button class="tog" data-val="oob" onclick="togglePenaltyReason('oob')" style="flex:1 1 45%;">🚧 OOB</button>
+      <button class="tog" data-val="bunker" onclick="togglePenaltyReason('bunker')" style="flex:1 1 45%;">⛱️ Unplayable in Bunker</button>
+      <button class="tog" data-val="unplayable" onclick="togglePenaltyReason('unplayable')" style="flex:1 1 45%;">🚫 Unplayable</button>
+      <button class="tog" data-val="other" onclick="togglePenaltyReason('other')" style="flex:1 1 45%;">❓ Other</button>
+    </div>
   </div>
 
   <div class="sec">⛳ Putts</div>
@@ -487,6 +511,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
   <!-- FIX 3: Hole highlights section -->
   <div id="hist-highlights"></div>
   <div id="hist-tee-impact" style="margin-bottom:1rem;"></div>
+  <div id="hist-penalty-breakdown" style="margin-bottom:1rem;"></div>
   <div id="hist-hole-stats" style="margin-bottom:1.5rem;"></div>
   <div class="lbl" style="margin-bottom:.6rem;">Individual Rounds</div>
   <div id="hist-rounds"></div>
@@ -881,7 +906,7 @@ function startRound(){
     playerHI:playerHI,courseHandicap:getCourseHandicap(),
   };
   holeData=courses[activeCourseIdx].holes.map(h=>({
-    fw:null,gir:null,score:h.par,putts:2,penalty:0,sr:null,comment:'',completed:false,
+    fw:null,gir:null,score:h.par,putts:2,penalty:0,penaltyReasons:[],bunker:0,sr:null,comment:'',completed:false,
     scramble:null,
     overridePar:null,overrideYards:null,overrideNote:''
   }));
@@ -1061,12 +1086,60 @@ function renderRound(){
   renderScore();
   document.getElementById('r-putts').textContent=hd.putts;
   document.getElementById('r-penalty').textContent=hd.penalty||0;
+  document.getElementById('r-bunker').textContent=hd.bunker||0;
   document.getElementById('r-comment').value=hd.comment;
   renderSrHint(hd.sr);
+  // Penalty reasons panel — show if penalties recorded, restore selections
+  document.getElementById('r-penalty-reasons').style.display=(hd.penalty>0)?'block':'none';
+  if(hd.penalty>0)renderPenaltyReasonTogs();
   const isLast=currentHole===course.holes.length-1;
   document.getElementById('r-commit-btn').textContent=isLast?'Complete Round ✓':`Commit & Go to Hole ${currentHole+2} →`;
   document.getElementById('r-prev-btn').disabled=currentHole===0;
   document.getElementById('r-next-btn').disabled=isLast;
+  renderRunningTotals();
+}
+
+function renderRunningTotals(){
+  const course=courses[activeCourseIdx];
+  const ch=getCourseHandicap();
+  const stableford=isStableford();
+  const done=holeData.filter(h=>h.completed);
+  const doneCount=done.length;
+
+  const el=document.getElementById('r-running-totals');
+  if(doneCount===0){
+    el.innerHTML=`<span style="font-size:.72rem;color:var(--muted);">No holes played yet</span>`;
+    return;
+  }
+
+  // vs Par so far (uses effective par per hole)
+  let grossSoFar=0,parSoFar=0,ptsSoFar=0;
+  holeData.forEach((d,i)=>{
+    if(!d.completed)return;
+    const ep=d.overridePar||course.holes[i].par;
+    grossSoFar+=(d.score||ep);
+    parSoFar+=ep;
+    if(ch!==null){
+      const p=stablefordPts(d.score||ep,ep,course.holes[i].si,ch);
+      ptsSoFar+=p||0;
+    }
+  });
+  const vsParSoFar=grossSoFar-parSoFar;
+  const vsParTxt=vsParSoFar===0?'E':vsParSoFar>0?'+'+vsParSoFar:String(vsParSoFar);
+  const vsParColor=vsParSoFar<0?'#4ade80':vsParSoFar===0?'#e8f5e9':vsParSoFar<=3?'#fb923c':'#f87171';
+
+  if(stableford&&ch!==null){
+    el.innerHTML=`
+      <div style="font-size:1rem;font-weight:700;color:#f9a825;">${ptsSoFar} pts <span style="font-size:.7rem;color:var(--muted);font-weight:400;">thru ${doneCount}</span></div>
+      <div style="font-size:.78rem;color:${vsParColor};">${vsParTxt} vs par</div>`;
+  } else if(ch!==null){
+    el.innerHTML=`
+      <div style="font-size:1rem;font-weight:700;color:${vsParColor};">${vsParTxt} <span style="font-size:.7rem;color:var(--muted);font-weight:400;">thru ${doneCount}</span></div>
+      <div style="font-size:.78rem;color:#f9a825;">${ptsSoFar} pts</div>`;
+  } else {
+    // No course handicap set — show vs par only
+    el.innerHTML=`<div style="font-size:1rem;font-weight:700;color:${vsParColor};">${vsParTxt} <span style="font-size:.7rem;color:var(--muted);font-weight:400;">thru ${doneCount}</span></div>`;
+  }
 }
 function renderScore(){
   const hd=holeData[currentHole];
@@ -1123,7 +1196,45 @@ function setTog(type,val){
   }
 }
 function adjPutts(d){saveFields();holeData[currentHole].putts=Math.max(0,holeData[currentHole].putts+d);document.getElementById('r-putts').textContent=holeData[currentHole].putts;}
-function adjPenalty(d){saveFields();holeData[currentHole].penalty=Math.max(0,(holeData[currentHole].penalty||0)+d);document.getElementById('r-penalty').textContent=holeData[currentHole].penalty;}
+function adjPenalty(d){
+  saveFields();
+  const hd=holeData[currentHole];
+  hd.penalty=Math.max(0,(hd.penalty||0)+d);
+  document.getElementById('r-penalty').textContent=hd.penalty;
+  // Show reason selector only when penalty > 0; clear reasons if back to 0
+  const reasonsPanel=document.getElementById('r-penalty-reasons');
+  if(hd.penalty>0){
+    reasonsPanel.style.display='block';
+    renderPenaltyReasonTogs();
+  } else {
+    reasonsPanel.style.display='none';
+    hd.penaltyReasons=[];
+  }
+}
+function adjBunker(d){
+  saveFields();
+  const hd=holeData[currentHole];
+  hd.bunker=Math.max(0,(hd.bunker||0)+d);
+  document.getElementById('r-bunker').textContent=hd.bunker;
+}
+function togglePenaltyReason(reason){
+  saveFields();
+  const hd=holeData[currentHole];
+  if(!hd.penaltyReasons)hd.penaltyReasons=[];
+  const idx=hd.penaltyReasons.indexOf(reason);
+  if(idx>=0)hd.penaltyReasons.splice(idx,1);
+  else hd.penaltyReasons.push(reason);
+  renderPenaltyReasonTogs();
+}
+function renderPenaltyReasonTogs(){
+  const hd=holeData[currentHole];
+  const reasons=hd.penaltyReasons||[];
+  const colMap={water:'blue',lost:'green',oob:'red',bunker:'amber',unplayable:'grey',other:'grey'};
+  document.getElementById('r-penalty-reason-togs').querySelectorAll('.tog').forEach(btn=>{
+    const v=btn.dataset.val;
+    btn.className='tog'+(reasons.includes(v)?' active-'+(colMap[v]||'amber'):'');
+  });
+}
 function adjScore(d){
   saveFields();
   const hd=holeData[currentHole];
@@ -1249,6 +1360,8 @@ function renderScorecard(){
     const hasOverride=!!d.overridePar;
     const sc=d.score||effectivePar;
     const pen=d.penalty||0;
+    const penReasonIcons={water:'🌊',lost:'🌳',oob:'🚧',bunker:'⛱️',unplayable:'🚫',other:'❓'};
+    const penReasonsTxt=(d.penaltyReasons||[]).map(r=>penReasonIcons[r]||'').join('');
     if(played){grossTot+=sc;playedParTot+=effectivePar;puttsTot+=d.putts||0;penTot+=pen;
       if(ch!==null){const p=stablefordPts(sc,effectivePar,h.si,ch);ptsTot+=p||0;}}
     const diff=sc-effectivePar;
@@ -1270,7 +1383,7 @@ function renderScorecard(){
       ${fwCell}
       <td>${!played?'<span style="color:#444">·</span>':d.gir==='hit'?'<span class="hit">✓</span>':d.gir==='miss'?'<span class="miss">✗</span>':'<span style="color:#444">·</span>'}</td>
       <td style="color:${played?'var(--accent)':'#444'}">${played?d.putts:'·'}</td>
-      <td style="color:${pen>0?'#fb923c':'#444'}">${played?(pen>0?pen:'—'):'·'}</td>
+      <td style="color:${pen>0?'#fb923c':'#444'}">${played?(pen>0?pen:'—'):'·'}${penReasonsTxt?`<div style="font-size:.7rem;">${penReasonsTxt}</div>`:''}</td>
       <td>${d.sr?`<span class="sr-dot" style="background:${srC[d.sr]||'#555'}"></span>`:'<span style="color:#444">·</span>'}</td>
     </tr>`;
   }).join('');
@@ -1357,7 +1470,7 @@ function saveRoundToHistory(){
 }
 function newRound(){
   saveRoundToHistory();
-  holeData=courses[activeCourseIdx].holes.map(h=>({fw:null,gir:null,score:h.par,putts:2,penalty:0,sr:null,comment:'',completed:false,scramble:null,overridePar:null,overrideYards:null,overrideNote:''}));
+  holeData=courses[activeCourseIdx].holes.map(h=>({fw:null,gir:null,score:h.par,putts:2,penalty:0,penaltyReasons:[],bunker:0,sr:null,comment:'',completed:false,scramble:null,overridePar:null,overrideYards:null,overrideNote:''}));
   currentHole=0;stratAppliedHoles=new Set();roundSaved=false;renderRound();nav('round');
 }
 function saveAndHome(){saveRoundToHistory();initHome();nav('home');}
@@ -1552,7 +1665,7 @@ function renderHistory(){
   document.getElementById('hist-empty').style.display=rounds.length?'none':'block';
 
   if(!rounds.length){
-    ['hist-agg-stats','hist-highlights','hist-tee-impact','hist-hole-stats','hist-rounds'].forEach(id=>document.getElementById(id).innerHTML='');
+    ['hist-agg-stats','hist-highlights','hist-tee-impact','hist-penalty-breakdown','hist-hole-stats','hist-rounds'].forEach(id=>document.getElementById(id).innerHTML='');
     return;
   }
 
@@ -1609,6 +1722,7 @@ function renderHistory(){
         ℹ️ Select a specific course above to see Best/Worst Holes, Tee Shot Impact and Per-Hole Statistics.
       </div>`;
     document.getElementById('hist-tee-impact').innerHTML='';
+    document.getElementById('hist-penalty-breakdown').innerHTML='';
     document.getElementById('hist-hole-stats').innerHTML='';
   } else {
     // Single course selected — show highlights with course name, and collapsible per-hole table
@@ -1777,6 +1891,112 @@ function renderHistory(){
     }
   } else if(sel==='all'){
     document.getElementById('hist-tee-impact').innerHTML='';
+  }
+
+  // ── PENALTY BREAKDOWN ────────────────────────────────────────────────────
+  if(sel!=='all'){
+    const penReasonLabels={water:'🌊 Water',lost:'🌳 Lost Ball',oob:'🚧 OOB',bunker:'⛱️ Unplayable in Bunker',unplayable:'🚫 Unplayable (Other)',other:'❓ Other'};
+    const penReasonColors={water:'#60a5fa',lost:'#4ade80',oob:'#f87171',bunker:'#fbbf24',unplayable:'#a78bfa',other:'#a1a1aa'};
+    const holesWithPenalties=done.filter(h=>(h.penalty||0)>0);
+    const totalPenaltyShots=holesWithPenalties.reduce((a,h)=>a+(h.penalty||0),0);
+    // Bunker visits — separate stat, no penalty implied
+    const holesWithBunker=done.filter(h=>(h.bunker||0)>0);
+    const totalBunkerVisits=holesWithBunker.reduce((a,h)=>a+(h.bunker||0),0);
+    const bunkerVisitPct=done.length?Math.round(holesWithBunker.length/done.length*100):0;
+
+    if(holesWithPenalties.length||holesWithBunker.length){
+      // Count reasons across all holes
+      const reasonCounts={water:0,lost:0,oob:0,bunker:0,unplayable:0,other:0};
+      holesWithPenalties.forEach(h=>{
+        (h.penaltyReasons||[]).forEach(r=>{ if(reasonCounts[r]!==undefined) reasonCounts[r]++; });
+      });
+      const totalReasonsLogged=Object.values(reasonCounts).reduce((a,b)=>a+b,0);
+
+      // Per-hole penalty frequency
+      const holeNums2=[...new Set(holesWithPenalties.map(h=>h.no))].sort((a,b)=>a-b);
+      const perHolePenalty=holeNums2.map(no=>{
+        const hs=holesWithPenalties.filter(h=>h.no===no);
+        const shots=hs.reduce((a,h)=>a+(h.penalty||0),0);
+        const reasonsHere={};
+        hs.forEach(h=>(h.penaltyReasons||[]).forEach(r=>{reasonsHere[r]=(reasonsHere[r]||0)+1;}));
+        const topReason=Object.entries(reasonsHere).sort((a,b)=>b[1]-a[1])[0];
+        return {no,rounds:hs.length,shots,topReason:topReason?topReason[0]:null};
+      }).sort((a,b)=>b.shots-a.shots);
+
+      // Per-hole bunker frequency
+      const bunkerHoleNums=[...new Set(holesWithBunker.map(h=>h.no))].sort((a,b)=>a-b);
+      const perHoleBunker=bunkerHoleNums.map(no=>{
+        const hs=holesWithBunker.filter(h=>h.no===no);
+        const visits=hs.reduce((a,h)=>a+(h.bunker||0),0);
+        return {no,rounds:hs.length,visits};
+      }).sort((a,b)=>b.visits-a.visits);
+
+      document.getElementById('hist-penalty-breakdown').innerHTML=`
+        <details style="margin-bottom:1.25rem;">
+          <summary style="cursor:pointer;font-size:.7rem;color:var(--muted);text-transform:uppercase;
+                          letter-spacing:.1em;padding:.5rem 0;list-style:none;display:flex;
+                          align-items:center;justify-content:space-between;">
+            <span>⚠️ Penalties &amp; Bunkers — ${sel}</span>
+            <span style="font-size:.8rem;color:var(--greenlt);">▼ Show</span>
+          </summary>
+          <div style="margin-top:.6rem;">
+
+            <div class="lbl" style="margin-bottom:.5rem;">Penalty Shots</div>
+            <div class="stat-grid" style="grid-template-columns:1fr 1fr;margin-bottom:.75rem;">
+              <div class="stat-card"><div class="stat-val" style="color:#fb923c;">${totalPenaltyShots}</div><div class="stat-lbl">Total Penalty Shots</div></div>
+              <div class="stat-card"><div class="stat-val" style="color:#fb923c;">${holesWithPenalties.length}</div><div class="stat-lbl">Holes With Penalties</div></div>
+            </div>
+            ${totalReasonsLogged?`
+            <div class="lbl" style="margin:.75rem 0 .5rem;">Penalty Reasons</div>
+            ${Object.entries(reasonCounts).filter(([,c])=>c>0).sort((a,b)=>b[1]-a[1]).map(([reason,count])=>{
+              const pct=Math.round(count/totalReasonsLogged*100);
+              return `<div class="bar-wrap">
+                <div class="bar-label-row"><span style="color:${penReasonColors[reason]}">${penReasonLabels[reason]}</span><span style="color:var(--muted)">${count} time${count!==1?'s':''} (${pct}%)</span></div>
+                <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${penReasonColors[reason]};"></div></div>
+              </div>`;
+            }).join('')}`:holesWithPenalties.length?'<div style="color:var(--muted);font-size:.8rem;margin-top:.5rem;">No reasons logged yet — tap a reason button next time you record a penalty.</div>':''}
+
+            ${perHolePenalty.length?`
+            <div class="lbl" style="margin:1rem 0 .5rem;">Holes Most Prone to Penalties</div>
+            <div style="overflow-x:auto;"><table class="hs-table">
+              <thead><tr><th style="text-align:left;">#</th><th>Shots</th><th>Rounds</th><th>Most Common Reason</th></tr></thead>
+              <tbody>${perHolePenalty.slice(0,6).map(h=>`
+                <tr>
+                  <td style="color:var(--muted);font-weight:700;text-align:left;">${h.no}</td>
+                  <td style="color:#fb923c;font-weight:600;">${h.shots}</td>
+                  <td style="color:var(--muted);">${h.rounds}</td>
+                  <td style="color:${h.topReason?penReasonColors[h.topReason]:'#555'};">${h.topReason?penReasonLabels[h.topReason]:'—'}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table></div>`:''}
+
+            <hr style="margin:1.25rem 0;"/>
+
+            <div class="lbl" style="margin-bottom:.5rem;">🏖️ Bunker Visits <span style="color:var(--muted);font-weight:400;">(no penalty — just sand)</span></div>
+            <div class="stat-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:.75rem;">
+              <div class="stat-card"><div class="stat-val" style="color:#fbbf24;">${totalBunkerVisits}</div><div class="stat-lbl">Total Bunker Visits</div></div>
+              <div class="stat-card"><div class="stat-val" style="color:#fbbf24;">${holesWithBunker.length}</div><div class="stat-lbl">Holes Affected</div></div>
+              <div class="stat-card"><div class="stat-val" style="color:#fbbf24;">${bunkerVisitPct}%</div><div class="stat-lbl">% of Holes</div></div>
+            </div>
+            ${perHoleBunker.length?`
+            <div class="lbl" style="margin:.75rem 0 .5rem;">Holes Most Prone to Bunkers</div>
+            <div style="overflow-x:auto;"><table class="hs-table">
+              <thead><tr><th style="text-align:left;">#</th><th>Visits</th><th>Rounds</th></tr></thead>
+              <tbody>${perHoleBunker.slice(0,6).map(h=>`
+                <tr>
+                  <td style="color:var(--muted);font-weight:700;text-align:left;">${h.no}</td>
+                  <td style="color:#fbbf24;font-weight:600;">${h.visits}</td>
+                  <td style="color:var(--muted);">${h.rounds}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table></div>`:'<div style="color:var(--muted);font-size:.8rem;">No bunker visits logged yet.</div>'}
+          </div>
+        </details>`;
+    } else {
+      document.getElementById('hist-penalty-breakdown').innerHTML='';
+    }
+  } else {
+    document.getElementById('hist-penalty-breakdown').innerHTML='';
   }
 
   // Build safe ID lookup for export, then render round list
