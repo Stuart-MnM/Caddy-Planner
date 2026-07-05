@@ -373,9 +373,31 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
   </div>
 
   <div class="sec">🎯 Green in Regulation</div>
+  <!-- Approach distance band — always shown -->
+  <div style="margin-bottom:.6rem;">
+    <div style="font-size:.7rem;color:var(--muted);margin-bottom:.35rem;">Approach distance</div>
+    <div class="tog-row" id="r-approach-togs" style="flex-wrap:wrap;">
+      <button class="tog" data-val="0-50"   onclick="setTog('approachDist','0-50')"   style="flex:1 1 18%;">🟢 &lt;50y</button>
+      <button class="tog" data-val="50-100"  onclick="setTog('approachDist','50-100')"  style="flex:1 1 18%;">🟡 50-100</button>
+      <button class="tog" data-val="100-150" onclick="setTog('approachDist','100-150')" style="flex:1 1 18%;">🟠 100-150</button>
+      <button class="tog" data-val="150-200" onclick="setTog('approachDist','150-200')" style="flex:1 1 18%;">🔴 150-200</button>
+      <button class="tog" data-val="200+"    onclick="setTog('approachDist','200+')"    style="flex:1 1 18%;">⚫ 200+</button>
+    </div>
+  </div>
   <div class="tog-row" id="r-gir-togs">
     <button class="tog" data-val="hit"  onclick="setTog('gir','hit')">✅ GIR Hit</button>
     <button class="tog" data-val="miss" onclick="setTog('gir','miss')">❌ Missed</button>
+  </div>
+
+  <!-- Miss direction — only shown when GIR missed -->
+  <div id="r-miss-dir-section" style="display:none;margin-bottom:.9rem;">
+    <div class="sec" style="margin-bottom:.35rem;">Miss direction</div>
+    <div class="tog-row" id="r-miss-dir-togs">
+      <button class="tog" data-val="short" onclick="setTog('missDir','short')">⬇ Short</button>
+      <button class="tog" data-val="long"  onclick="setTog('missDir','long')">⬆ Long</button>
+      <button class="tog" data-val="left"  onclick="setTog('missDir','left')">⬅ Left</button>
+      <button class="tog" data-val="right" onclick="setTog('missDir','right')">➡ Right</button>
+    </div>
   </div>
 
   <!-- Scrambling — only shown when GIR is missed -->
@@ -510,6 +532,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
   <div id="hist-agg-stats"></div>
   <!-- FIX 3: Hole highlights section -->
   <div id="hist-highlights"></div>
+  <div id="hist-green-approach" style="margin-bottom:1rem;"></div>
   <div id="hist-tee-impact" style="margin-bottom:1rem;"></div>
   <div id="hist-penalty-breakdown" style="margin-bottom:1rem;"></div>
   <div id="hist-hole-stats" style="margin-bottom:1.5rem;"></div>
@@ -906,7 +929,7 @@ function startRound(){
     playerHI:playerHI,courseHandicap:getCourseHandicap(),
   };
   holeData=courses[activeCourseIdx].holes.map(h=>({
-    fw:null,gir:null,score:h.par,putts:2,penalty:0,penaltyReasons:[],bunker:0,sr:null,comment:'',completed:false,
+    fw:null,gir:null,approachDist:null,missDir:null,score:h.par,putts:2,penalty:0,penaltyReasons:[],bunker:0,sr:null,comment:'',completed:false,
     scramble:null,
     overridePar:null,overrideYards:null,overrideNote:''
   }));
@@ -1073,6 +1096,12 @@ function renderRound(){
 
   renderTogs('fw',hd.fw);renderTogs('gir',hd.gir);renderTogs('sr',hd.sr);
   renderTogs('scramble',hd.scramble);
+  renderTogs('approachDist',hd.approachDist);
+  renderTogs('missDir',hd.missDir);
+
+  // Miss direction only shown when GIR missed
+  const girMissed=hd.gir==='miss';
+  document.getElementById('r-miss-dir-section').style.display=girMissed?'block':'none';
 
   // Scrambling only shown when GIR is missed
   document.getElementById('r-scramble-section').style.display=hd.gir==='miss'?'block':'none';
@@ -1169,9 +1198,12 @@ function renderScore(){
   }
 }
 function renderTogs(type,activeVal){
-  const ids={fw:'r-fw-togs',gir:'r-gir-togs',sr:'r-sr-togs',scramble:'r-scramble-togs'};
+  const ids={fw:'r-fw-togs',gir:'r-gir-togs',sr:'r-sr-togs',scramble:'r-scramble-togs',
+             approachDist:'r-approach-togs',missDir:'r-miss-dir-togs'};
   const colMap={'hit':'green','miss-left':'red','miss-right':'blue','miss':'red',
-                'correct':'green','adjusted':'amber','wrong':'red','yes':'green','no':'red'};
+                'correct':'green','adjusted':'amber','wrong':'red','yes':'green','no':'red',
+                '0-50':'green','50-100':'green','100-150':'amber','150-200':'red','200+':'grey',
+                'short':'amber','long':'blue','left':'red','right':'blue'};
   const el=document.getElementById(ids[type]);if(!el)return;
   el.querySelectorAll('.tog').forEach(btn=>{
     const v=btn.dataset.val;
@@ -1190,9 +1222,10 @@ function setTog(type,val){
   renderTogs(type,holeData[currentHole][type]);
   if(type==='sr')renderSrHint(holeData[currentHole].sr);
   if(type==='gir'){
-    const showScramble=holeData[currentHole].gir==='miss';
-    document.getElementById('r-scramble-section').style.display=showScramble?'block':'none';
-    if(!showScramble)holeData[currentHole].scramble=null;
+    const missed=holeData[currentHole].gir==='miss';
+    document.getElementById('r-scramble-section').style.display=missed?'block':'none';
+    document.getElementById('r-miss-dir-section').style.display=missed?'block':'none';
+    if(!missed){holeData[currentHole].scramble=null;holeData[currentHole].missDir=null;}
   }
 }
 function adjPutts(d){saveFields();holeData[currentHole].putts=Math.max(0,holeData[currentHole].putts+d);document.getElementById('r-putts').textContent=holeData[currentHole].putts;}
@@ -1470,7 +1503,7 @@ function saveRoundToHistory(){
 }
 function newRound(){
   saveRoundToHistory();
-  holeData=courses[activeCourseIdx].holes.map(h=>({fw:null,gir:null,score:h.par,putts:2,penalty:0,penaltyReasons:[],bunker:0,sr:null,comment:'',completed:false,scramble:null,overridePar:null,overrideYards:null,overrideNote:''}));
+  holeData=courses[activeCourseIdx].holes.map(h=>({fw:null,gir:null,approachDist:null,missDir:null,score:h.par,putts:2,penalty:0,penaltyReasons:[],bunker:0,sr:null,comment:'',completed:false,scramble:null,overridePar:null,overrideYards:null,overrideNote:''}));
   currentHole=0;stratAppliedHoles=new Set();roundSaved=false;renderRound();nav('round');
 }
 function saveAndHome(){saveRoundToHistory();initHome();nav('home');}
@@ -1665,7 +1698,7 @@ function renderHistory(){
   document.getElementById('hist-empty').style.display=rounds.length?'none':'block';
 
   if(!rounds.length){
-    ['hist-agg-stats','hist-highlights','hist-tee-impact','hist-penalty-breakdown','hist-hole-stats','hist-rounds'].forEach(id=>document.getElementById(id).innerHTML='');
+    ['hist-agg-stats','hist-highlights','hist-green-approach','hist-tee-impact','hist-penalty-breakdown','hist-hole-stats','hist-rounds'].forEach(id=>document.getElementById(id).innerHTML='');
     return;
   }
 
@@ -1722,6 +1755,7 @@ function renderHistory(){
         ℹ️ Select a specific course above to see Best/Worst Holes, Tee Shot Impact and Per-Hole Statistics.
       </div>`;
     document.getElementById('hist-tee-impact').innerHTML='';
+    document.getElementById('hist-green-approach').innerHTML='';
     document.getElementById('hist-penalty-breakdown').innerHTML='';
     document.getElementById('hist-hole-stats').innerHTML='';
   } else {
@@ -1891,6 +1925,109 @@ function renderHistory(){
     }
   } else if(sel==='all'){
     document.getElementById('hist-tee-impact').innerHTML='';
+  }
+
+  // ── GREEN APPROACH STATS ──────────────────────────────────────────────────
+  if(sel!=='all'){
+    const distLabels={'0-50':'🟢 <50y','50-100':'🟡 50-100y','100-150':'🟠 100-150y','150-200':'🔴 150-200y','200+':'⚫ 200y+'};
+    const distColors={'0-50':'#4ade80','50-100':'#facc15','100-150':'#fb923c','150-200':'#f87171','200+':'#a1a1aa'};
+    const dirLabels={short:'⬇ Short',long:'⬆ Long',left:'⬅ Left',right:'➡ Right'};
+    const dirColors={short:'#fb923c',long:'#60a5fa',left:'#f87171',right:'#60a5fa'};
+
+    const missedHoles=done.filter(h=>h.gir==='miss');
+    const distOrder=['0-50','50-100','100-150','150-200','200+'];
+    const dirOrder=['short','long','left','right'];
+
+    // Count distance bands for all misses
+    const distCounts={};
+    distOrder.forEach(d=>distCounts[d]=0);
+    missedHoles.forEach(h=>{if(h.approachDist)distCounts[h.approachDist]++;});
+    const totalDistLogged=Object.values(distCounts).reduce((a,b)=>a+b,0);
+
+    // Count miss directions for all misses
+    const dirCounts={};
+    dirOrder.forEach(d=>dirCounts[d]=0);
+    missedHoles.forEach(h=>{if(h.missDir)dirCounts[h.missDir]++;});
+    const totalDirLogged=Object.values(dirCounts).reduce((a,b)=>a+b,0);
+
+    // Per-hole miss analysis — which distance band causes most misses
+    const holeNos=[...new Set(missedHoles.map(h=>h.no))].sort((a,b)=>a-b);
+    const perHoleMiss=holeNos.map(no=>{
+      const hs=missedHoles.filter(h=>h.no===no);
+      const distHere={};distOrder.forEach(d=>distHere[d]=0);
+      hs.forEach(h=>{if(h.approachDist)distHere[h.approachDist]++;});
+      const topDist=Object.entries(distHere).filter(([,c])=>c>0).sort((a,b)=>b[1]-a[1])[0];
+      const dirHere={};dirOrder.forEach(d=>dirHere[d]=0);
+      hs.forEach(h=>{if(h.missDir)dirHere[h.missDir]++;});
+      const topDir=Object.entries(dirHere).filter(([,c])=>c>0).sort((a,b)=>b[1]-a[1])[0];
+      return {no,misses:hs.length,topDist:topDist?topDist[0]:null,topDir:topDir?topDir[0]:null};
+    }).sort((a,b)=>b.misses-a.misses);
+
+    if(missedHoles.length){
+      document.getElementById('hist-green-approach').innerHTML=`
+        <details style="margin-bottom:1.25rem;">
+          <summary style="cursor:pointer;font-size:.7rem;color:var(--muted);text-transform:uppercase;
+                          letter-spacing:.1em;padding:.5rem 0;list-style:none;display:flex;
+                          align-items:center;justify-content:space-between;">
+            <span>🎯 Green Approach Analysis — ${sel}</span>
+            <span style="font-size:.8rem;color:var(--greenlt);">▼ Show</span>
+          </summary>
+          <div style="margin-top:.6rem;">
+
+            <div class="stat-grid" style="grid-template-columns:1fr 1fr;margin-bottom:.75rem;">
+              <div class="stat-card"><div class="stat-val" style="color:#f87171;">${missedHoles.length}</div><div class="stat-lbl">Total Greens Missed</div></div>
+              <div class="stat-card"><div class="stat-val" style="color:#f87171;">${done.length?Math.round(missedHoles.length/done.length*100):'—'}%</div><div class="stat-lbl">Miss Rate</div></div>
+            </div>
+
+            ${totalDistLogged?`
+            <div class="lbl" style="margin-bottom:.5rem;">Miss by Approach Distance</div>
+            <div style="font-size:.75rem;color:var(--muted);margin-bottom:.5rem;">Which distances are costing you the most greens?</div>
+            ${distOrder.filter(d=>distCounts[d]>0).map(d=>{
+              const pct=Math.round(distCounts[d]/totalDistLogged*100);
+              return `<div class="bar-wrap">
+                <div class="bar-label-row"><span style="color:${distColors[d]}">${distLabels[d]}</span><span style="color:var(--muted)">${distCounts[d]} miss${distCounts[d]!==1?'es':''} (${pct}%)</span></div>
+                <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${distColors[d]};"></div></div>
+              </div>`;
+            }).join('')}`:'<div style="color:var(--muted);font-size:.8rem;margin-bottom:.75rem;">Tap an approach distance band next time you miss a green to build up data.</div>'}
+
+            ${totalDirLogged?`
+            <div class="lbl" style="margin:.75rem 0 .5rem;">Miss Direction</div>
+            <div style="font-size:.75rem;color:var(--muted);margin-bottom:.5rem;">Where does your ball typically end up when you miss?</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.75rem;">
+              ${dirOrder.filter(d=>dirCounts[d]>0).map(d=>{
+                const pct=Math.round(dirCounts[d]/totalDirLogged*100);
+                return `<div class="stat-card" style="padding:.6rem;">
+                  <div style="font-size:1.1rem;font-weight:700;color:${dirColors[d]};">${dirCounts[d]}</div>
+                  <div style="font-size:.7rem;color:var(--muted);">${dirLabels[d]} (${pct}%)</div>
+                </div>`;
+              }).join('')}
+            </div>`:''}
+
+            ${perHoleMiss.length?`
+            <div class="lbl" style="margin:.75rem 0 .5rem;">Holes Where You Miss Most</div>
+            <div style="overflow-x:auto;"><table class="hs-table">
+              <thead><tr>
+                <th style="text-align:left;">#</th>
+                <th>Misses</th>
+                <th>Typical Distance</th>
+                <th>Typical Direction</th>
+              </tr></thead>
+              <tbody>${perHoleMiss.slice(0,8).map(h=>`
+                <tr>
+                  <td style="color:var(--muted);font-weight:700;text-align:left;">${h.no}</td>
+                  <td style="color:#f87171;font-weight:600;">${h.misses}</td>
+                  <td style="color:${h.topDist?distColors[h.topDist]:'#555'};">${h.topDist?distLabels[h.topDist]:'—'}</td>
+                  <td style="color:${h.topDir?dirColors[h.topDir]:'#555'};">${h.topDir?dirLabels[h.topDir]:'—'}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table></div>`:''}
+          </div>
+        </details>`;
+    } else {
+      document.getElementById('hist-green-approach').innerHTML='';
+    }
+  } else {
+    document.getElementById('hist-green-approach').innerHTML='';
   }
 
   // ── PENALTY BREAKDOWN ────────────────────────────────────────────────────
