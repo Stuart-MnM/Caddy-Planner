@@ -389,14 +389,19 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
     <button class="tog" data-val="miss" onclick="setTog('gir','miss')">❌ Missed</button>
   </div>
 
-  <!-- Miss direction — only shown when GIR missed -->
+  <!-- Miss direction — two independent rows, shown only when GIR missed -->
   <div id="r-miss-dir-section" style="display:none;margin-bottom:.9rem;">
     <div class="sec" style="margin-bottom:.35rem;">Miss direction</div>
-    <div class="tog-row" id="r-miss-dir-togs">
-      <button class="tog" data-val="short" onclick="setTog('missDir','short')">⬇ Short</button>
-      <button class="tog" data-val="long"  onclick="setTog('missDir','long')">⬆ Long</button>
-      <button class="tog" data-val="left"  onclick="setTog('missDir','left')">⬅ Left</button>
-      <button class="tog" data-val="right" onclick="setTog('missDir','right')">➡ Right</button>
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:.4rem;">
+      Select one from each row if applicable — e.g. Short + Left
+    </div>
+    <div class="tog-row" id="r-miss-depth-togs" style="margin-bottom:.4rem;">
+      <button class="tog" data-val="short" onclick="setMissDir('depth','short')">⬇ Short</button>
+      <button class="tog" data-val="long"  onclick="setMissDir('depth','long')">⬆ Long</button>
+    </div>
+    <div class="tog-row" id="r-miss-lateral-togs">
+      <button class="tog" data-val="left"  onclick="setMissDir('lateral','left')">⬅ Left</button>
+      <button class="tog" data-val="right" onclick="setMissDir('lateral','right')">➡ Right</button>
     </div>
   </div>
 
@@ -929,7 +934,7 @@ function startRound(){
     playerHI:playerHI,courseHandicap:getCourseHandicap(),
   };
   holeData=courses[activeCourseIdx].holes.map(h=>({
-    fw:null,gir:null,approachDist:null,missDir:null,score:h.par,putts:2,penalty:0,penaltyReasons:[],bunker:0,sr:null,comment:'',completed:false,
+    fw:null,gir:null,approachDist:null,missDirDepth:null,missDirLateral:null,score:h.par,putts:2,penalty:0,penaltyReasons:[],bunker:0,sr:null,comment:'',completed:false,
     scramble:null,
     overridePar:null,overrideYards:null,overrideNote:''
   }));
@@ -1097,14 +1102,13 @@ function renderRound(){
   renderTogs('fw',hd.fw);renderTogs('gir',hd.gir);renderTogs('sr',hd.sr);
   renderTogs('scramble',hd.scramble);
   renderTogs('approachDist',hd.approachDist);
-  renderTogs('missDir',hd.missDir);
+  renderTogs('missDirDepth',hd.missDirDepth);
+  renderTogs('missDirLateral',hd.missDirLateral);
 
-  // Miss direction only shown when GIR missed
+  // Miss direction and scrambling only shown when GIR missed
   const girMissed=hd.gir==='miss';
   document.getElementById('r-miss-dir-section').style.display=girMissed?'block':'none';
-
-  // Scrambling only shown when GIR is missed
-  document.getElementById('r-scramble-section').style.display=hd.gir==='miss'?'block':'none';
+  document.getElementById('r-scramble-section').style.display=girMissed?'block':'none';
 
   // Override panel — restore values if already set
   document.getElementById('r-override-panel').style.display='none';
@@ -1199,7 +1203,7 @@ function renderScore(){
 }
 function renderTogs(type,activeVal){
   const ids={fw:'r-fw-togs',gir:'r-gir-togs',sr:'r-sr-togs',scramble:'r-scramble-togs',
-             approachDist:'r-approach-togs',missDir:'r-miss-dir-togs'};
+             approachDist:'r-approach-togs',missDirDepth:'r-miss-depth-togs',missDirLateral:'r-miss-lateral-togs'};
   const colMap={'hit':'green','miss-left':'red','miss-right':'blue','miss':'red',
                 'correct':'green','adjusted':'amber','wrong':'red','yes':'green','no':'red',
                 '0-50':'green','50-100':'green','100-150':'amber','150-200':'red','200+':'grey',
@@ -1216,6 +1220,12 @@ function renderSrHint(val){
   else if(val==='wrong'){el.style.display='block';el.textContent='❌ Notes will replace the strategy entirely for next time.';}
   else el.style.display='none';
 }
+function setMissDir(axis,val){
+  saveFields();
+  const field=axis==='depth'?'missDirDepth':'missDirLateral';
+  holeData[currentHole][field]=holeData[currentHole][field]===val?null:val;
+  renderTogs(field,holeData[currentHole][field]);
+}
 function setTog(type,val){
   saveFields();
   holeData[currentHole][type]=holeData[currentHole][type]===val?null:val;
@@ -1225,7 +1235,11 @@ function setTog(type,val){
     const missed=holeData[currentHole].gir==='miss';
     document.getElementById('r-scramble-section').style.display=missed?'block':'none';
     document.getElementById('r-miss-dir-section').style.display=missed?'block':'none';
-    if(!missed){holeData[currentHole].scramble=null;holeData[currentHole].missDir=null;}
+    if(!missed){
+      holeData[currentHole].scramble=null;
+      holeData[currentHole].missDirDepth=null;
+      holeData[currentHole].missDirLateral=null;
+    }
   }
 }
 function adjPutts(d){saveFields();holeData[currentHole].putts=Math.max(0,holeData[currentHole].putts+d);document.getElementById('r-putts').textContent=holeData[currentHole].putts;}
@@ -1503,7 +1517,7 @@ function saveRoundToHistory(){
 }
 function newRound(){
   saveRoundToHistory();
-  holeData=courses[activeCourseIdx].holes.map(h=>({fw:null,gir:null,approachDist:null,missDir:null,score:h.par,putts:2,penalty:0,penaltyReasons:[],bunker:0,sr:null,comment:'',completed:false,scramble:null,overridePar:null,overrideYards:null,overrideNote:''}));
+  holeData=courses[activeCourseIdx].holes.map(h=>({fw:null,gir:null,approachDist:null,missDirDepth:null,missDirLateral:null,score:h.par,putts:2,penalty:0,penaltyReasons:[],bunker:0,sr:null,comment:'',completed:false,scramble:null,overridePar:null,overrideYards:null,overrideNote:''}));
   currentHole=0;stratAppliedHoles=new Set();roundSaved=false;renderRound();nav('round');
 }
 function saveAndHome(){saveRoundToHistory();initHome();nav('home');}
@@ -1931,36 +1945,58 @@ function renderHistory(){
   if(sel!=='all'){
     const distLabels={'0-50':'🟢 <50y','50-100':'🟡 50-100y','100-150':'🟠 100-150y','150-200':'🔴 150-200y','200+':'⚫ 200y+'};
     const distColors={'0-50':'#4ade80','50-100':'#facc15','100-150':'#fb923c','150-200':'#f87171','200+':'#a1a1aa'};
-    const dirLabels={short:'⬇ Short',long:'⬆ Long',left:'⬅ Left',right:'➡ Right'};
-    const dirColors={short:'#fb923c',long:'#60a5fa',left:'#f87171',right:'#60a5fa'};
+    const depthLabels={short:'⬇ Short',long:'⬆ Long'};
+    const lateralLabels={left:'⬅ Left',right:'➡ Right'};
+    const depthColors={short:'#fb923c',long:'#60a5fa'};
+    const lateralColors={left:'#f87171',right:'#60a5fa'};
 
     const missedHoles=done.filter(h=>h.gir==='miss');
     const distOrder=['0-50','50-100','100-150','150-200','200+'];
-    const dirOrder=['short','long','left','right'];
 
-    // Count distance bands for all misses
+    // Count distance bands
     const distCounts={};
     distOrder.forEach(d=>distCounts[d]=0);
     missedHoles.forEach(h=>{if(h.approachDist)distCounts[h.approachDist]++;});
     const totalDistLogged=Object.values(distCounts).reduce((a,b)=>a+b,0);
 
-    // Count miss directions for all misses
-    const dirCounts={};
-    dirOrder.forEach(d=>dirCounts[d]=0);
-    missedHoles.forEach(h=>{if(h.missDir)dirCounts[h.missDir]++;});
-    const totalDirLogged=Object.values(dirCounts).reduce((a,b)=>a+b,0);
+    // Count depth (short/long) and lateral (left/right) separately
+    const depthCounts={short:0,long:0};
+    const lateralCounts={left:0,right:0};
+    missedHoles.forEach(h=>{
+      if(h.missDirDepth)depthCounts[h.missDirDepth]=(depthCounts[h.missDirDepth]||0)+1;
+      if(h.missDirLateral)lateralCounts[h.missDirLateral]=(lateralCounts[h.missDirLateral]||0)+1;
+    });
+    const totalDepthLogged=Object.values(depthCounts).reduce((a,b)=>a+b,0);
+    const totalLateralLogged=Object.values(lateralCounts).reduce((a,b)=>a+b,0);
 
-    // Per-hole miss analysis — which distance band causes most misses
+    // Build combined direction strings for display e.g. "Short+Left"
+    function combinedDir(h){
+      const parts=[];
+      if(h.missDirDepth)parts.push(h.missDirDepth==='short'?'Short':'Long');
+      if(h.missDirLateral)parts.push(h.missDirLateral==='left'?'Left':'Right');
+      return parts.length?parts.join('+'):'—';
+    }
+
+    // Count all combinations
+    const comboCounts={};
+    missedHoles.forEach(h=>{
+      const combo=combinedDir(h);
+      if(combo!=='—')comboCounts[combo]=(comboCounts[combo]||0)+1;
+    });
+    const totalCombos=Object.values(comboCounts).reduce((a,b)=>a+b,0);
+
+    // Per-hole miss analysis
     const holeNos=[...new Set(missedHoles.map(h=>h.no))].sort((a,b)=>a-b);
     const perHoleMiss=holeNos.map(no=>{
       const hs=missedHoles.filter(h=>h.no===no);
       const distHere={};distOrder.forEach(d=>distHere[d]=0);
       hs.forEach(h=>{if(h.approachDist)distHere[h.approachDist]++;});
       const topDist=Object.entries(distHere).filter(([,c])=>c>0).sort((a,b)=>b[1]-a[1])[0];
-      const dirHere={};dirOrder.forEach(d=>dirHere[d]=0);
-      hs.forEach(h=>{if(h.missDir)dirHere[h.missDir]++;});
-      const topDir=Object.entries(dirHere).filter(([,c])=>c>0).sort((a,b)=>b[1]-a[1])[0];
-      return {no,misses:hs.length,topDist:topDist?topDist[0]:null,topDir:topDir?topDir[0]:null};
+      // Find most common combo for this hole
+      const comboHere={};
+      hs.forEach(h=>{const c=combinedDir(h);if(c!=='—')comboHere[c]=(comboHere[c]||0)+1;});
+      const topCombo=Object.entries(comboHere).sort((a,b)=>b[1]-a[1])[0];
+      return {no,misses:hs.length,topDist:topDist?topDist[0]:null,topCombo:topCombo?topCombo[0]:null};
     }).sort((a,b)=>b.misses-a.misses);
 
     if(missedHoles.length){
@@ -1990,18 +2026,30 @@ function renderHistory(){
               </div>`;
             }).join('')}`:'<div style="color:var(--muted);font-size:.8rem;margin-bottom:.75rem;">Tap an approach distance band next time you miss a green to build up data.</div>'}
 
-            ${totalDirLogged?`
+            ${totalDepthLogged||totalLateralLogged?`
             <div class="lbl" style="margin:.75rem 0 .5rem;">Miss Direction</div>
-            <div style="font-size:.75rem;color:var(--muted);margin-bottom:.5rem;">Where does your ball typically end up when you miss?</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.75rem;">
-              ${dirOrder.filter(d=>dirCounts[d]>0).map(d=>{
-                const pct=Math.round(dirCounts[d]/totalDirLogged*100);
-                return `<div class="stat-card" style="padding:.6rem;">
-                  <div style="font-size:1.1rem;font-weight:700;color:${dirColors[d]};">${dirCounts[d]}</div>
-                  <div style="font-size:.7rem;color:var(--muted);">${dirLabels[d]} (${pct}%)</div>
-                </div>`;
-              }).join('')}
-            </div>`:''}
+            <div style="font-size:.75rem;color:var(--muted);margin-bottom:.5rem;">Depth and lateral breakdown — can be combined e.g. Short+Left</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem;">
+              ${Object.entries(depthCounts).filter(([,c])=>c>0).map(([d,c])=>`
+                <div class="stat-card" style="padding:.6rem;">
+                  <div style="font-size:1.1rem;font-weight:700;color:${depthColors[d]};">${c}</div>
+                  <div style="font-size:.7rem;color:var(--muted);">${depthLabels[d]} (${totalDepthLogged?Math.round(c/totalDepthLogged*100):0}%)</div>
+                </div>`).join('')}
+              ${Object.entries(lateralCounts).filter(([,c])=>c>0).map(([d,c])=>`
+                <div class="stat-card" style="padding:.6rem;">
+                  <div style="font-size:1.1rem;font-weight:700;color:${lateralColors[d]};">${c}</div>
+                  <div style="font-size:.7rem;color:var(--muted);">${lateralLabels[d]} (${totalLateralLogged?Math.round(c/totalLateralLogged*100):0}%)</div>
+                </div>`).join('')}
+            </div>
+            ${totalCombos?`
+            <div style="font-size:.75rem;color:var(--muted);margin-bottom:.4rem;">Most common combinations:</div>
+            <div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.75rem;">
+              ${Object.entries(comboCounts).sort((a,b)=>b[1]-a[1]).map(([combo,count])=>`
+                <span style="background:rgba(255,255,255,.08);border:1px solid var(--border);
+                             border-radius:8px;padding:.25rem .65rem;font-size:.8rem;color:var(--accent);">
+                  ${combo} <span style="color:var(--muted);">${count}×</span>
+                </span>`).join('')}
+            </div>`:''}`:''}
 
             ${perHoleMiss.length?`
             <div class="lbl" style="margin:.75rem 0 .5rem;">Holes Where You Miss Most</div>
@@ -2017,7 +2065,7 @@ function renderHistory(){
                   <td style="color:var(--muted);font-weight:700;text-align:left;">${h.no}</td>
                   <td style="color:#f87171;font-weight:600;">${h.misses}</td>
                   <td style="color:${h.topDist?distColors[h.topDist]:'#555'};">${h.topDist?distLabels[h.topDist]:'—'}</td>
-                  <td style="color:${h.topDir?dirColors[h.topDir]:'#555'};">${h.topDir?dirLabels[h.topDir]:'—'}</td>
+                  <td style="color:var(--accent);">${h.topCombo||'—'}</td>
                 </tr>`).join('')}
               </tbody>
             </table></div>`:''}
