@@ -1470,7 +1470,7 @@ function saveFields(){holeData[currentHole].comment=document.getElementById('r-c
 function commitHole(){
   saveFields();holeData[currentHole].completed=true;
   const len=courses[activeCourseIdx].holes.length;
-  if(currentHole<len-1){currentHole++;renderRound();}
+  if(currentHole<len-1){currentHole++;renderRound();window.scrollTo(0,0);}
   else goScorecard('complete');
 }
 function jumpHole(i){saveFields();currentHole=i;renderRound();}
