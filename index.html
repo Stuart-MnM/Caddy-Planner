@@ -163,6 +163,18 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
 .override-active{background:rgba(249,168,37,.15);border-color:rgba(249,168,37,.5);}
 .override-badge{display:inline-block;background:rgba(249,168,37,.2);border:1px solid rgba(249,168,37,.4);
   border-radius:6px;padding:.15rem .5rem;font-size:.75rem;color:#ffe082;margin-left:.5rem;}
+/* Data Says panel */
+.data-says-box{background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.25);
+  border-left:3px solid #60a5fa;border-radius:10px;padding:1rem;margin-bottom:1.2rem;}
+.data-says-lbl{font-size:.7rem;color:#93c5fd;text-transform:uppercase;letter-spacing:.1em;margin-bottom:.55rem;
+  display:flex;align-items:center;justify-content:space-between;}
+.data-says-n{font-size:.68rem;color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400;}
+.ds-row{display:flex;gap:.55rem;margin-bottom:.55rem;align-items:flex-start;}
+.ds-row:last-child{margin-bottom:0;}
+.ds-icon{font-size:.95rem;line-height:1.4;flex-shrink:0;}
+.ds-text{font-size:.84rem;line-height:1.5;color:var(--text);}
+.ds-text strong{color:#93c5fd;}
+.ds-empty{color:var(--muted);font-size:.83rem;font-style:italic;line-height:1.5;}
 </style>
 </head>
 <body>
@@ -363,6 +375,12 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
     <div id="r-strategy" class="strat-text"></div>
   </div>
 
+  <!-- Your Data Says panel — shows actual history vs planned strategy for this hole -->
+  <div id="r-data-says" class="data-says-box" style="display:none;">
+    <div class="data-says-lbl"><span>📊 Your Data Says…</span><span class="data-says-n" id="r-data-says-n"></span></div>
+    <div id="r-data-says-body"></div>
+  </div>
+
   <div id="r-fw-section">
     <div class="sec">🏌️ Tee Shot / Fairway</div>
     <div class="tog-row" id="r-fw-togs">
@@ -393,7 +411,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
   <div id="r-miss-dir-section" style="display:none;margin-bottom:.9rem;">
     <div class="sec" style="margin-bottom:.35rem;">Miss direction</div>
     <div style="font-size:.72rem;color:var(--muted);margin-bottom:.4rem;">
-      Select one from each column if applicable — e.g. Short + Left
+      Select one from each row if applicable — e.g. Short + Left
     </div>
     <div class="tog-row" id="r-miss-depth-togs" style="margin-bottom:.4rem;">
       <button class="tog" data-val="short" onclick="setMissDir('depth','short')">⬇ Short</button>
@@ -1130,6 +1148,7 @@ function renderRound(){
   document.getElementById('r-prev-btn').disabled=currentHole===0;
   document.getElementById('r-next-btn').disabled=isLast;
   renderRunningTotals();
+  renderDataSays();
 }
 
 function renderRunningTotals(){
@@ -1173,6 +1192,163 @@ function renderRunningTotals(){
     // No course handicap set — show vs par only
     el.innerHTML=`<div style="font-size:1rem;font-weight:700;color:${vsParColor};">${vsParTxt} <span style="font-size:.7rem;color:var(--muted);font-weight:400;">thru ${doneCount}</span></div>`;
   }
+}
+
+// ═══════════════════════════════════════════════ YOUR DATA SAYS PANEL ════════
+// Compares what you planned to do (the strategy text) against what you actually
+// do on this hole, using saved round history. Only shown once there's enough
+// data on this specific hole (course + hole number) to say something meaningful.
+function renderDataSays(){
+  const box=document.getElementById('r-data-says');
+  const nEl=document.getElementById('r-data-says-n');
+  const body=document.getElementById('r-data-says-body');
+  if(!box)return;
+
+  const course=courses[activeCourseIdx];
+  const hole=course.holes[currentHole];
+  const courseName=course.name;
+  const holeNo=hole.no;
+  const holePar=hole.par;
+
+  // Gather every completed instance of this hole (by course name + hole number)
+  // from saved history, using effectivePar where an override was applied.
+  const instances=[];
+  history.forEach(r=>{
+    if(r.course!==courseName)return;
+    (r.holes||[]).forEach(h=>{
+      if(h.no===holeNo&&h.completed)instances.push(h);
+    });
+  });
+
+  const MIN_SAMPLE=3; // need at least this many rounds on the hole to say anything useful
+  if(instances.length<MIN_SAMPLE){
+    box.style.display='block';
+    nEl.textContent=instances.length?`${instances.length} round${instances.length!==1?'s':''} logged`:'';
+    body.innerHTML=`<div class="ds-empty">Play this hole a few more times (need ${MIN_SAMPLE}, have ${instances.length}) and this panel will start showing what actually tends to happen here — compared with the plan above.</div>`;
+    return;
+  }
+
+  box.style.display='block';
+  nEl.textContent=`${instances.length} rounds`;
+
+  const rows=[];
+
+  // ── Scoring vs par ──────────────────────────────────────────────────────
+  const scores=instances.map(h=>h.score||h.effectivePar||h.par||holePar);
+  const pars=instances.map(h=>h.effectivePar||h.par||holePar);
+  const avgScore=scores.reduce((a,b)=>a+b,0)/scores.length;
+  const avgPar=pars.reduce((a,b)=>a+b,0)/pars.length;
+  const avgVsPar=avgScore-avgPar;
+  const vsParTxt=avgVsPar===0?'level with par':avgVsPar>0?`${avgVsPar.toFixed(1)} over par`:`${Math.abs(avgVsPar).toFixed(1)} under par`;
+  rows.push({icon:'🏅',html:`You average <strong>${avgScore.toFixed(2)}</strong> here — ${vsParTxt} on average.`});
+
+  // ── Fairway (only relevant on par 4/5) ──────────────────────────────────
+  if(holePar!==3){
+    const fwLogged=instances.filter(h=>h.fw);
+    if(fwLogged.length>=MIN_SAMPLE){
+      const fwHit=fwLogged.filter(h=>h.fw==='hit').length;
+      const fwPct=Math.round(fwHit/fwLogged.length*100);
+      const missL=fwLogged.filter(h=>h.fw==='miss-left').length;
+      const missR=fwLogged.filter(h=>h.fw==='miss-right').length;
+      let missTxt='';
+      if(missL+missR>0){
+        const dom=missL>missR?'left':missR>missL?'right':null;
+        missTxt=dom?` — when you miss, it's usually <strong>${dom}</strong> (${dom==='left'?missL:missR} of ${missL+missR} misses)`:` — misses are split evenly left/right`;
+      }
+      rows.push({icon:'🏌️',html:`You hit this fairway <strong>${fwPct}%</strong> of the time${missTxt}.`});
+    }
+  }
+
+  // ── GIR ──────────────────────────────────────────────────────────────────
+  const girLogged=instances.filter(h=>h.gir);
+  if(girLogged.length>=MIN_SAMPLE){
+    const girHit=girLogged.filter(h=>h.gir==='hit').length;
+    const girPct=Math.round(girHit/girLogged.length*100);
+    rows.push({icon:'🎯',html:`Greens in regulation: <strong>${girPct}%</strong> (${girHit} of ${girLogged.length}).`});
+
+    // Score impact of hitting vs missing the green, if both groups have data
+    const hitGroup=girLogged.filter(h=>h.gir==='hit');
+    const missGroup=girLogged.filter(h=>h.gir==='miss');
+    if(hitGroup.length>=1&&missGroup.length>=1){
+      const avgHit=hitGroup.reduce((a,h)=>a+(h.score||h.effectivePar||holePar),0)/hitGroup.length;
+      const avgMiss=missGroup.reduce((a,h)=>a+(h.score||h.effectivePar||holePar),0)/missGroup.length;
+      const diff=avgMiss-avgHit;
+      if(diff>0.15){
+        rows.push({icon:'📉',html:`Missing this green costs you about <strong>${diff.toFixed(1)} shots</strong> on average (${avgHit.toFixed(1)} when you hit it vs ${avgMiss.toFixed(1)} when you miss).`});
+      }
+    }
+
+    // Most common miss direction/distance
+    if(missGroup.length>=MIN_SAMPLE){
+      const combos={};
+      missGroup.forEach(h=>{
+        const parts=[];
+        if(h.missDirDepth)parts.push(h.missDirDepth==='short'?'short':'long');
+        if(h.missDirLateral)parts.push(h.missDirLateral==='left'?'left':'right');
+        if(parts.length){const key=parts.join('+');combos[key]=(combos[key]||0)+1;}
+      });
+      const top=Object.entries(combos).sort((a,b)=>b[1]-a[1])[0];
+      if(top){
+        rows.push({icon:'📍',html:`Most common miss: <strong>${top[0]}</strong> (${top[1]} of ${missGroup.length} misses).`});
+      }
+    }
+
+    // Scrambling
+    if(missGroup.length>=MIN_SAMPLE){
+      const scrambleLogged=missGroup.filter(h=>h.scramble);
+      if(scrambleLogged.length>=1){
+        const saved=scrambleLogged.filter(h=>h.scramble==='yes').length;
+        const pct=Math.round(saved/scrambleLogged.length*100);
+        rows.push({icon:'🏳',html:`When you miss the green here, you scramble for par <strong>${pct}%</strong> of the time.`});
+      }
+    }
+  }
+
+  // ── Bunkers ──────────────────────────────────────────────────────────────
+  const bunkerVisits=instances.filter(h=>(h.bunker||0)>0).length;
+  if(bunkerVisits>0){
+    const pct=Math.round(bunkerVisits/instances.length*100);
+    if(pct>=25){
+      rows.push({icon:'🏖️',html:`You've found sand here in <strong>${pct}%</strong> of rounds.`});
+    }
+  }
+
+  // ── Penalties ────────────────────────────────────────────────────────────
+  const penaltyRounds=instances.filter(h=>(h.penalty||0)>0).length;
+  if(penaltyRounds>0){
+    const pct=Math.round(penaltyRounds/instances.length*100);
+    if(pct>=20){
+      const reasonCounts={};
+      instances.forEach(h=>(h.penaltyReasons||[]).forEach(r=>{reasonCounts[r]=(reasonCounts[r]||0)+1;}));
+      const topReason=Object.entries(reasonCounts).sort((a,b)=>b[1]-a[1])[0];
+      const reasonLabels={water:'water',lost:'a lost ball',oob:'OOB',bunker:'an unplayable bunker lie',unplayable:'an unplayable lie',other:'other trouble'};
+      const reasonTxt=topReason?` — usually ${reasonLabels[topReason[0]]||topReason[0]}`:'';
+      rows.push({icon:'⚠️',html:`Penalty shots in <strong>${pct}%</strong> of rounds here${reasonTxt}.`});
+    }
+  }
+
+  // ── Putts ────────────────────────────────────────────────────────────────
+  const puttsLogged=instances.filter(h=>h.putts!==undefined&&h.putts!==null);
+  if(puttsLogged.length>=MIN_SAMPLE){
+    const avgPutts=puttsLogged.reduce((a,h)=>a+h.putts,0)/puttsLogged.length;
+    if(avgPutts>=2.3){
+      rows.push({icon:'⛳',html:`You're averaging <strong>${avgPutts.toFixed(1)} putts</strong> here — a touch high, worth a look.`});
+    }
+  }
+
+  // ── Strategy assessment pattern ────────────────────────────────────────
+  const srLogged=instances.filter(h=>h.sr);
+  if(srLogged.length>=MIN_SAMPLE){
+    const wrongOrAdjusted=srLogged.filter(h=>h.sr==='wrong'||h.sr==='adjusted').length;
+    const pct=Math.round(wrongOrAdjusted/srLogged.length*100);
+    if(pct>=40){
+      rows.push({icon:'🧠',html:`You've rated your strategy here as wrong or needing adjustment in <strong>${pct}%</strong> of rounds — the plan above may be worth revisiting.`});
+    } else if(pct===0&&srLogged.length>=MIN_SAMPLE){
+      rows.push({icon:'✅',html:`You've called this strategy correct every time you've logged it — it's working.`});
+    }
+  }
+
+  body.innerHTML=rows.map(r=>`<div class="ds-row"><span class="ds-icon">${r.icon}</span><span class="ds-text">${r.html}</span></div>`).join('');
 }
 function renderScore(){
   const hd=holeData[currentHole];
