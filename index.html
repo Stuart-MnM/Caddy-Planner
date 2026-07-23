@@ -166,8 +166,11 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
 /* Data Says panel */
 .data-says-box{background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.25);
   border-left:3px solid #60a5fa;border-radius:10px;padding:1rem;margin-bottom:1.2rem;}
-.data-says-lbl{font-size:.7rem;color:#93c5fd;text-transform:uppercase;letter-spacing:.1em;margin-bottom:.55rem;
-  display:flex;align-items:center;justify-content:space-between;}
+.data-says-lbl{font-size:.7rem;color:#93c5fd;text-transform:uppercase;letter-spacing:.1em;
+  display:flex;align-items:center;justify-content:space-between;cursor:pointer;list-style:none;}
+.data-says-lbl::-webkit-details-marker{display:none;}
+.data-says-lbl::before{content:'▸ ';font-size:.9rem;margin-right:.15rem;}
+.data-says-box[open] .data-says-lbl::before{content:'▾ ';}
 .data-says-n{font-size:.68rem;color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400;}
 .ds-row{display:flex;gap:.55rem;margin-bottom:.55rem;align-items:flex-start;}
 .ds-row:last-child{margin-bottom:0;}
@@ -375,11 +378,14 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
     <div id="r-strategy" class="strat-text"></div>
   </div>
 
-  <!-- Your Data Says panel — shows actual history vs planned strategy for this hole -->
-  <div id="r-data-says" class="data-says-box" style="display:none;">
-    <div class="data-says-lbl"><span>📊 Your Data Says…</span><span class="data-says-n" id="r-data-says-n"></span></div>
-    <div id="r-data-says-body"></div>
-  </div>
+  <!-- Your Data Says panel — shows actual history vs planned strategy for this hole.
+       Collapsed by default so it doesn't demand attention on every hole while playing;
+       tap to expand when you want to look. -->
+  <details id="r-data-says" class="data-says-box" style="display:none;">
+    <summary class="data-says-lbl"><span>📊 Your Data Says…</span><span class="data-says-n" id="r-data-says-n"></span></summary>
+    <div id="r-data-says-body" style="margin-top:.6rem;"></div>
+    <button id="r-data-says-fold-btn" class="btn btn-amber" style="margin-top:.75rem;display:none;font-size:.82rem;padding:.55rem;" onclick="foldDataSaysIntoStrategy()">📝 Fold Top Insight Into Strategy</button>
+  </details>
 
   <div id="r-fw-section">
     <div class="sec">🏌️ Tee Shot / Fairway</div>
@@ -1231,6 +1237,9 @@ function renderDataSays(){
   box.style.display='block';
   nEl.textContent=`${instances.length} rounds`;
 
+  // Each row: icon, html (for display), plain (for folding into strategy text — no markup),
+  // and priority (lower = more worth folding into the strategy; generic score average is
+  // low priority since it's not actionable on its own).
   const rows=[];
 
   // ── Scoring vs par ──────────────────────────────────────────────────────
@@ -1240,7 +1249,9 @@ function renderDataSays(){
   const avgPar=pars.reduce((a,b)=>a+b,0)/pars.length;
   const avgVsPar=avgScore-avgPar;
   const vsParTxt=avgVsPar===0?'level with par':avgVsPar>0?`${avgVsPar.toFixed(1)} over par`:`${Math.abs(avgVsPar).toFixed(1)} under par`;
-  rows.push({icon:'🏅',html:`You average <strong>${avgScore.toFixed(2)}</strong> here — ${vsParTxt} on average.`});
+  rows.push({icon:'🏅',priority:90,
+    html:`You average <strong>${avgScore.toFixed(2)}</strong> here — ${vsParTxt} on average.`,
+    plain:`Average score ${avgScore.toFixed(2)} (${vsParTxt}).`});
 
   // ── Fairway (only relevant on par 4/5) ──────────────────────────────────
   if(holePar!==3){
@@ -1255,7 +1266,10 @@ function renderDataSays(){
         const dom=missL>missR?'left':missR>missL?'right':null;
         missTxt=dom?` — when you miss, it's usually <strong>${dom}</strong> (${dom==='left'?missL:missR} of ${missL+missR} misses)`:` — misses are split evenly left/right`;
       }
-      rows.push({icon:'🏌️',html:`You hit this fairway <strong>${fwPct}%</strong> of the time${missTxt}.`});
+      const domSide=missL>missR?'left':missR>missL?'right':null;
+      rows.push({icon:'🏌️',priority:domSide?20:60,
+        html:`You hit this fairway <strong>${fwPct}%</strong> of the time${missTxt}.`,
+        plain:domSide?`Fairway hit ${fwPct}% — misses tend to go ${domSide}, so favour the ${domSide==='left'?'right':'left'} side off the tee.`:`Fairway hit ${fwPct}% of the time.`});
     }
   }
 
@@ -1264,7 +1278,9 @@ function renderDataSays(){
   if(girLogged.length>=MIN_SAMPLE){
     const girHit=girLogged.filter(h=>h.gir==='hit').length;
     const girPct=Math.round(girHit/girLogged.length*100);
-    rows.push({icon:'🎯',html:`Greens in regulation: <strong>${girPct}%</strong> (${girHit} of ${girLogged.length}).`});
+    rows.push({icon:'🎯',priority:70,
+      html:`Greens in regulation: <strong>${girPct}%</strong> (${girHit} of ${girLogged.length}).`,
+      plain:`GIR ${girPct}%.`});
 
     // Score impact of hitting vs missing the green, if both groups have data
     const hitGroup=girLogged.filter(h=>h.gir==='hit');
@@ -1274,7 +1290,9 @@ function renderDataSays(){
       const avgMiss=missGroup.reduce((a,h)=>a+(h.score||h.effectivePar||holePar),0)/missGroup.length;
       const diff=avgMiss-avgHit;
       if(diff>0.15){
-        rows.push({icon:'📉',html:`Missing this green costs you about <strong>${diff.toFixed(1)} shots</strong> on average (${avgHit.toFixed(1)} when you hit it vs ${avgMiss.toFixed(1)} when you miss).`});
+        rows.push({icon:'📉',priority:15,
+          html:`Missing this green costs you about <strong>${diff.toFixed(1)} shots</strong> on average (${avgHit.toFixed(1)} when you hit it vs ${avgMiss.toFixed(1)} when you miss).`,
+          plain:`Missing this green costs about ${diff.toFixed(1)} extra shots on average — worth playing safely away from trouble even if it means a longer next shot.`});
       }
     }
 
@@ -1289,7 +1307,9 @@ function renderDataSays(){
       });
       const top=Object.entries(combos).sort((a,b)=>b[1]-a[1])[0];
       if(top){
-        rows.push({icon:'📍',html:`Most common miss: <strong>${top[0]}</strong> (${top[1]} of ${missGroup.length} misses).`});
+        rows.push({icon:'📍',priority:10,
+          html:`Most common miss: <strong>${top[0]}</strong> (${top[1]} of ${missGroup.length} misses).`,
+          plain:`Most common miss when off target here is ${top[0]} (${top[1]} of ${missGroup.length} times) — aim to take that side out of play.`});
       }
     }
 
@@ -1299,7 +1319,9 @@ function renderDataSays(){
       if(scrambleLogged.length>=1){
         const saved=scrambleLogged.filter(h=>h.scramble==='yes').length;
         const pct=Math.round(saved/scrambleLogged.length*100);
-        rows.push({icon:'🏳',html:`When you miss the green here, you scramble for par <strong>${pct}%</strong> of the time.`});
+        rows.push({icon:'🏳',priority:50,
+          html:`When you miss the green here, you scramble for par <strong>${pct}%</strong> of the time.`,
+          plain:`Scrambling ${pct}% when the green is missed.`});
       }
     }
   }
@@ -1309,7 +1331,9 @@ function renderDataSays(){
   if(bunkerVisits>0){
     const pct=Math.round(bunkerVisits/instances.length*100);
     if(pct>=25){
-      rows.push({icon:'🏖️',html:`You've found sand here in <strong>${pct}%</strong> of rounds.`});
+      rows.push({icon:'🏖️',priority:35,
+        html:`You've found sand here in <strong>${pct}%</strong> of rounds.`,
+        plain:`Bunker trouble in ${pct}% of rounds — worth taking extra care to avoid the sand here.`});
     }
   }
 
@@ -1323,7 +1347,9 @@ function renderDataSays(){
       const topReason=Object.entries(reasonCounts).sort((a,b)=>b[1]-a[1])[0];
       const reasonLabels={water:'water',lost:'a lost ball',oob:'OOB',bunker:'an unplayable bunker lie',unplayable:'an unplayable lie',other:'other trouble'};
       const reasonTxt=topReason?` — usually ${reasonLabels[topReason[0]]||topReason[0]}`:'';
-      rows.push({icon:'⚠️',html:`Penalty shots in <strong>${pct}%</strong> of rounds here${reasonTxt}.`});
+      rows.push({icon:'⚠️',priority:12,
+        html:`Penalty shots in <strong>${pct}%</strong> of rounds here${reasonTxt}.`,
+        plain:`Penalty shots in ${pct}% of rounds here${reasonTxt} — play the safer line even if it costs a few yards.`});
     }
   }
 
@@ -1332,7 +1358,9 @@ function renderDataSays(){
   if(puttsLogged.length>=MIN_SAMPLE){
     const avgPutts=puttsLogged.reduce((a,h)=>a+h.putts,0)/puttsLogged.length;
     if(avgPutts>=2.3){
-      rows.push({icon:'⛳',html:`You're averaging <strong>${avgPutts.toFixed(1)} putts</strong> here — a touch high, worth a look.`});
+      rows.push({icon:'⛳',priority:55,
+        html:`You're averaging <strong>${avgPutts.toFixed(1)} putts</strong> here — a touch high, worth a look.`,
+        plain:`Averaging ${avgPutts.toFixed(1)} putts here — take an extra moment reading the line.`});
     }
   }
 
@@ -1342,13 +1370,55 @@ function renderDataSays(){
     const wrongOrAdjusted=srLogged.filter(h=>h.sr==='wrong'||h.sr==='adjusted').length;
     const pct=Math.round(wrongOrAdjusted/srLogged.length*100);
     if(pct>=40){
-      rows.push({icon:'🧠',html:`You've rated your strategy here as wrong or needing adjustment in <strong>${pct}%</strong> of rounds — the plan above may be worth revisiting.`});
+      rows.push({icon:'🧠',priority:5,
+        html:`You've rated your strategy here as wrong or needing adjustment in <strong>${pct}%</strong> of rounds — the plan above may be worth revisiting.`,
+        plain:`This strategy has needed adjusting or been wrong in ${pct}% of logged rounds — worth rethinking the plan for this hole.`});
     } else if(pct===0&&srLogged.length>=MIN_SAMPLE){
-      rows.push({icon:'✅',html:`You've called this strategy correct every time you've logged it — it's working.`});
+      rows.push({icon:'✅',priority:95,
+        html:`You've called this strategy correct every time you've logged it — it's working.`,
+        plain:`Strategy has been correct every time logged — no change needed.`});
     }
   }
 
   body.innerHTML=rows.map(r=>`<div class="ds-row"><span class="ds-icon">${r.icon}</span><span class="ds-text">${r.html}</span></div>`).join('');
+
+  // Pick the single most actionable insight (lowest priority number) to offer folding
+  // into the saved strategy. Skip rows without a plain-text version.
+  const foldable=rows.filter(r=>r.plain).sort((a,b)=>(a.priority||99)-(b.priority||99));
+  const foldBtn=document.getElementById('r-data-says-fold-btn');
+  if(foldable.length){
+    const top=foldable[0];
+    const existingStrategy=hole.strategy||'';
+    const alreadyFolded=existingStrategy.includes(top.plain);
+    foldBtn.style.display='block';
+    foldBtn.textContent=alreadyFolded?'✅ Already Folded Into Strategy':'📝 Fold Top Insight Into Strategy';
+    foldBtn.disabled=alreadyFolded;
+    foldBtn.style.opacity=alreadyFolded?'.5':'1';
+    foldBtn.style.cursor=alreadyFolded?'default':'pointer';
+    foldBtn.dataset.insight=top.plain;
+  } else {
+    foldBtn.style.display='none';
+  }
+}
+
+// Permanently appends the current top Data Says insight onto this hole's saved
+// strategy, so next time you play it the lesson is already part of the plan —
+// and the panel above naturally has less new ground to cover over time.
+function foldDataSaysIntoStrategy(){
+  const foldBtn=document.getElementById('r-data-says-fold-btn');
+  const insight=foldBtn.dataset.insight;
+  if(!insight)return;
+  const course=courses[activeCourseIdx];
+  const hole=course.holes[currentHole];
+  const existing=hole.strategy||'';
+  if(existing.includes(insight)){
+    alert('This insight is already part of the saved strategy for this hole.');
+    return;
+  }
+  hole.strategy=existing?(existing+' | '+insight):insight;
+  save();
+  renderRound(); // refresh strategy box and re-check fold button state
+  alert('✅ Added to the saved strategy for this hole.');
 }
 function renderScore(){
   const hd=holeData[currentHole];
