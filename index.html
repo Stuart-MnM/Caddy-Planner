@@ -62,6 +62,8 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
 .score-eagle{color:#f9a825;}.score-birdie{color:#4ade80;}.score-par{color:#e8f5e9;}
 .score-bogey{color:#fb923c;}.score-double{color:#f87171;}.score-worse{color:#c62828;}
 .dots{display:flex;gap:4px;flex-wrap:wrap;max-width:200px;}
+.dots-wrap{display:flex;flex-direction:column;gap:4px;align-items:flex-end;}
+.dots-row{display:flex;gap:4px;}
 .dot{width:13px;height:13px;border-radius:50%;cursor:pointer;transition:all .2s;}
 .dot-done{background:var(--greenlt);}.dot-active{background:#fff;border:2px solid var(--greenlt);}.dot-todo{background:rgba(255,255,255,.15);}
 .topbar{display:flex;align-items:flex-start;justify-content:space-between;padding:.75rem 0;margin-bottom:.75rem;border-bottom:1px solid var(--border);}
@@ -163,6 +165,12 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
 .override-active{background:rgba(249,168,37,.15);border-color:rgba(249,168,37,.5);}
 .override-badge{display:inline-block;background:rgba(249,168,37,.2);border:1px solid rgba(249,168,37,.4);
   border-radius:6px;padding:.15rem .5rem;font-size:.75rem;color:#ffe082;margin-left:.5rem;}
+/* Modal overlay — used for the Front 9 check */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:1000;
+  display:flex;align-items:center;justify-content:center;padding:1rem;}
+.modal-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;
+  padding:1.25rem;max-width:440px;width:100%;max-height:88vh;overflow-y:auto;
+  box-shadow:0 12px 40px rgba(0,0,0,.5);}
 /* Data Says panel */
 .data-says-box{background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.25);
   border-left:3px solid #60a5fa;border-radius:10px;padding:1rem;margin-bottom:1.2rem;}
@@ -318,7 +326,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
       <div style="font-size:.75rem;color:#4a7c59;" id="r-round-meta"></div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.35rem;">
-      <div class="dots" id="r-dots"></div>
+      <div class="dots-wrap" id="r-dots"></div>
       <!-- FIX 5a: Two distinct buttons — Edit & Restart vs Cancel Round -->
       <div class="round-ctrl">
         <button class="ctrl-btn ctrl-edit" onclick="editAndRestart()">✏️ Edit &amp; Restart</button>
@@ -516,6 +524,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
   <h2 id="sc-title" style="color:var(--accent);margin-bottom:.2rem;"></h2>
   <div style="color:var(--muted);font-size:.85rem;font-style:italic;" id="sc-meta"></div>
   <div style="color:#6a9970;font-size:.8rem;margin-top:.15rem;margin-bottom:1rem;" id="sc-cond"></div>
+  <div class="dots-wrap" id="sc-dots" style="align-items:flex-start;margin-bottom:1rem;"></div>
   <div class="stat-grid" id="sc-stats"></div>
   <div id="sc-adj-panel" style="display:none;" class="adj-banner">
     <div class="adj-banner-title">📝 Strategy Updates Available</div>
@@ -672,7 +681,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
         <div style="color:var(--muted);font-style:italic;font-size:.85rem;" id="walk-course-name"></div>
         <div style="font-size:.75rem;color:#4a7c59;" id="walk-progress-txt"></div>
       </div>
-      <div class="dots" id="walk-dots"></div>
+      <div class="dots-wrap" id="walk-dots"></div>
     </div>
 
     <div class="hole-header">
@@ -853,6 +862,19 @@ function save(){
   localStorage.setItem('cp_courses',JSON.stringify(courses));
   localStorage.setItem('cp_history',JSON.stringify(history));
   localStorage.setItem('cp_hi',String(playerHI));
+}
+
+// Builds the hole-progress dots. For an 18-hole course this splits into two rows of 9
+// (front nine / back nine) rather than wrapping arbitrarily based on screen width.
+function dotsHtml(n,isDoneFn,isActiveFn,jumpFnName){
+  const dot=i=>`<div class="dot ${isDoneFn(i)?'dot-done':isActiveFn(i)?'dot-active':'dot-todo'}"
+    onclick="${jumpFnName}(${i})" title="Hole ${i+1}"></div>`;
+  if(n===18){
+    const front=Array.from({length:9},(_,i)=>dot(i)).join('');
+    const back=Array.from({length:9},(_,i)=>dot(i+9)).join('');
+    return `<div class="dots-row">${front}</div><div class="dots-row">${back}</div>`;
+  }
+  return `<div class="dots-row" style="flex-wrap:wrap;max-width:200px;justify-content:flex-end;">${Array.from({length:n},(_,i)=>dot(i)).join('')}</div>`;
 }
 
 // ══════════════════════════════════════════════════════ NAVIGATION ════════════
@@ -1098,9 +1120,8 @@ function renderRound(){
   document.getElementById('r-course-name').textContent=course.name;
   document.getElementById('r-round-meta').textContent=
     `${roundMeta.type} · ${holeData.filter(h=>h.completed).length}/${course.holes.length} done`;
-  document.getElementById('r-dots').innerHTML=course.holes.map((_,i)=>
-    `<div class="dot ${holeData[i].completed?'dot-done':i===currentHole?'dot-active':'dot-todo'}"
-          onclick="jumpHole(${i})" title="Hole ${i+1}"></div>`).join('');
+  document.getElementById('r-dots').innerHTML=dotsHtml(
+    course.holes.length, i=>holeData[i].completed, i=>i===currentHole, 'jumpHole');
 
   document.getElementById('r-holenum').textContent=hole.no;
   const pb=document.getElementById('r-par-badge');
@@ -1540,9 +1561,78 @@ function saveFields(){holeData[currentHole].comment=document.getElementById('r-c
 function commitHole(){
   saveFields();holeData[currentHole].completed=true;
   const len=courses[activeCourseIdx].holes.length;
+  const hole=courses[activeCourseIdx].holes[currentHole];
+  // After completing hole 9 (with more holes still to play), pause for a card check
+  // before moving on — mirrors the "check cards at the turn" habit in real competitions.
+  if(hole.no===9&&currentHole<len-1){
+    showFront9Check();
+    return;
+  }
   if(currentHole<len-1){currentHole++;renderRound();window.scrollTo(0,0);}
   else goScorecard('complete');
 }
+
+// ═══════════════════════════════════════════════════ FRONT 9 CHECK ═══════════
+function showFront9Check(){
+  const course=courses[activeCourseIdx];
+  const ch=getCourseHandicap();
+  const front=holeData.slice(0,9);
+  const frontHoles=course.holes.slice(0,9);
+
+  let gross=0,parTot=0,putts=0,pts=0,fwHoles=0,fwHit=0,girHit=0;
+  front.forEach((d,i)=>{
+    const h=frontHoles[i];
+    const ep=d.overridePar||h.par;
+    const sc=d.score||ep;
+    gross+=sc;parTot+=ep;putts+=d.putts||0;
+    if(ep!==3){fwHoles++;if(d.fw==='hit')fwHit++;}
+    if(d.gir==='hit')girHit++;
+    if(ch!==null){pts+=stablefordPts(sc,ep,h.si,ch)||0;}
+  });
+  const vsPar=gross-parTot;
+  const vsParTxt=vsPar===0?'E':vsPar>0?'+'+vsPar:String(vsPar);
+
+  document.getElementById('front9-stats').innerHTML=`
+    <div class="stat-card"><div class="stat-val">${gross}</div><div class="stat-lbl">Gross</div></div>
+    <div class="stat-card"><div class="stat-val">${vsParTxt}</div><div class="stat-lbl">vs Par</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#f9a825;">${ch!==null?pts:'—'}</div><div class="stat-lbl">Stableford Pts</div></div>
+    <div class="stat-card"><div class="stat-val">${putts}</div><div class="stat-lbl">Putts</div></div>
+    <div class="stat-card"><div class="stat-val">${fwHoles?Math.round(fwHit/fwHoles*100)+'%':'—'}</div><div class="stat-lbl">Fairways</div></div>
+    <div class="stat-card"><div class="stat-val">${Math.round(girHit/9*100)}%</div><div class="stat-lbl">GIR</div></div>`;
+
+  document.getElementById('front9-tbody').innerHTML=front.map((d,i)=>{
+    const h=frontHoles[i];
+    const ep=d.overridePar||h.par;
+    const sc=d.score||ep;
+    const pts9=ch!==null?stablefordPts(sc,ep,h.si,ch):null;
+    const diff=sc-ep;
+    const scColor=diff<=-2?'#f9a825':diff===-1?'#4ade80':diff===0?'#e8f5e9':diff===1?'#fb923c':'#f87171';
+    return `<tr>
+      <td class="td-hole">${h.no}</td>
+      <td><span class="td-par ${ep===3?'par3':ep===4?'par4':'par5'}">${ep}</span></td>
+      <td style="color:${scColor};font-weight:600;">${sc}</td>
+      <td style="color:#f9a825;">${pts9!==null?pts9:'·'}</td>
+      <td style="color:var(--accent);">${d.putts||0}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('front9-dots').innerHTML=dotsHtml(
+    course.holes.length, i=>holeData[i].completed, i=>false, 'jumpFromFront9');
+
+  document.getElementById('front9-modal').style.display='flex';
+}
+function confirmFront9(){
+  document.getElementById('front9-modal').style.display='none';
+  const len=courses[activeCourseIdx].holes.length;
+  if(currentHole<len-1){currentHole++;renderRound();window.scrollTo(0,0);}
+  else goScorecard('complete');
+}
+function jumpFromFront9(i){
+  document.getElementById('front9-modal').style.display='none';
+  jumpHole(i);
+  window.scrollTo(0,0);
+}
+
 function jumpHole(i){saveFields();currentHole=i;renderRound();}
 function goPrev(){if(currentHole>0){saveFields();currentHole--;renderRound();}}
 function goNext(){if(currentHole<courses[activeCourseIdx].holes.length-1){saveFields();currentHole++;renderRound();}}
@@ -1558,6 +1648,11 @@ function renderScorecard(){
   document.getElementById('sc-meta').textContent=`${course.name} · ${roundMeta.date} · ${roundMeta.type}${roundMeta.playerHI?' · HI '+roundMeta.playerHI:''}`;
   document.getElementById('sc-cond').textContent=roundMeta.conditions?'🌬 '+roundMeta.conditions:'';
   document.getElementById('sc-back').textContent=scReturnScreen==='round'?'← Back to Round':'← Back';
+
+  // Same hole-progress dots as the round screen — tap any hole to jump straight into it
+  document.getElementById('sc-dots').innerHTML=dotsHtml(
+    holes.length, i=>holeData[i].completed, i=>false, 'jumpFromSc');
+
 
   // FIX 5b: Only count/show completed holes in stats
   const doneMask=holeData.map(h=>h.completed);
@@ -2923,11 +3018,11 @@ function renderWalkHole(){
   document.getElementById('walk-progress-txt').textContent=
     `Hole ${walkHoleIdx+1} of ${course.holes.length} · ${filled} strateg${filled!==1?'ies':'y'} recorded`;
 
-  document.getElementById('walk-dots').innerHTML=course.holes.map((_,i)=>{
-    const hasTxt=walkStrategies[i]&&walkStrategies[i].trim();
-    const cls=i===walkHoleIdx?'dot dot-active':hasTxt?'dot dot-done':'dot dot-todo';
-    return `<div class="${cls}" onclick="walkJump(${i})" title="Hole ${i+1}"></div>`;
-  }).join('');
+  document.getElementById('walk-dots').innerHTML=dotsHtml(
+    course.holes.length,
+    i=>walkStrategies[i]&&walkStrategies[i].trim(),
+    i=>i===walkHoleIdx,
+    'walkJump');
 
   document.getElementById('walk-holenum').textContent=hole.no;
   const pb=document.getElementById('walk-par-badge');
@@ -3134,5 +3229,22 @@ function clearOverride(){
 // ══════════════════════════════════════════════════════════ BOOT ══════════════
 initHome();
 </script>
+<!-- ══ FRONT 9 CHECK MODAL ══════════════════════════════════════════════════ -->
+<div id="front9-modal" class="modal-overlay" style="display:none;">
+  <div class="modal-card">
+    <div style="font-size:1.7rem;margin-bottom:.15rem;">🏌️</div>
+    <h2 style="color:var(--accent);margin-bottom:.15rem;">Front 9 Complete</h2>
+    <p style="color:var(--muted);font-size:.85rem;margin-bottom:1rem;">If in a Competition, check your card against your playing partners' before heading to the 10th.</p>
+    <div class="dots-wrap" id="front9-dots" style="align-items:center;margin:0 0 1rem;"></div>
+    <div class="stat-grid" id="front9-stats" style="margin:0 0 1rem;"></div>
+    <table class="sc-table" style="margin-bottom:1.25rem;">
+      <thead><tr><th style="text-align:left;">#</th><th>Par</th><th>Score</th><th>Pts</th><th>Putts</th></tr></thead>
+      <tbody id="front9-tbody"></tbody>
+    </table>
+    <button class="btn btn-primary" onclick="confirmFront9()">✅ Got It — Continue to Back 9 →</button>
+    <p style="color:var(--muted);font-size:.72rem;text-align:center;margin-top:.4rem;">Spot an error? Tap a hole's dot above to jump straight back and fix it.</p>
+  </div>
+</div>
+
 </body>
 </html>
