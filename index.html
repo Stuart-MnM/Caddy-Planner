@@ -62,8 +62,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
 .score-eagle{color:#f9a825;}.score-birdie{color:#4ade80;}.score-par{color:#e8f5e9;}
 .score-bogey{color:#fb923c;}.score-double{color:#f87171;}.score-worse{color:#c62828;}
 .dots{display:flex;gap:4px;flex-wrap:wrap;max-width:200px;}
-.dots-wrap{display:flex;flex-direction:column;gap:4px;align-items:flex-end;}
-.dots-row{display:flex;gap:4px;}
 .dot{width:13px;height:13px;border-radius:50%;cursor:pointer;transition:all .2s;}
 .dot-done{background:var(--greenlt);}.dot-active{background:#fff;border:2px solid var(--greenlt);}.dot-todo{background:rgba(255,255,255,.15);}
 .topbar{display:flex;align-items:flex-start;justify-content:space-between;padding:.75rem 0;margin-bottom:.75rem;border-bottom:1px solid var(--border);}
@@ -165,27 +163,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
 .override-active{background:rgba(249,168,37,.15);border-color:rgba(249,168,37,.5);}
 .override-badge{display:inline-block;background:rgba(249,168,37,.2);border:1px solid rgba(249,168,37,.4);
   border-radius:6px;padding:.15rem .5rem;font-size:.75rem;color:#ffe082;margin-left:.5rem;}
-/* Modal overlay — used for the Front 9 check */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:1000;
-  display:flex;align-items:center;justify-content:center;padding:1rem;}
-.modal-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;
-  padding:1.25rem;max-width:440px;width:100%;max-height:88vh;overflow-y:auto;
-  box-shadow:0 12px 40px rgba(0,0,0,.5);}
-/* Data Says panel */
-.data-says-box{background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.25);
-  border-left:3px solid #60a5fa;border-radius:10px;padding:1rem;margin-bottom:1.2rem;}
-.data-says-lbl{font-size:.7rem;color:#93c5fd;text-transform:uppercase;letter-spacing:.1em;
-  display:flex;align-items:center;justify-content:space-between;cursor:pointer;list-style:none;}
-.data-says-lbl::-webkit-details-marker{display:none;}
-.data-says-lbl::before{content:'▸ ';font-size:.9rem;margin-right:.15rem;}
-.data-says-box[open] .data-says-lbl::before{content:'▾ ';}
-.data-says-n{font-size:.68rem;color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400;}
-.ds-row{display:flex;gap:.55rem;margin-bottom:.55rem;align-items:flex-start;}
-.ds-row:last-child{margin-bottom:0;}
-.ds-icon{font-size:.95rem;line-height:1.4;flex-shrink:0;}
-.ds-text{font-size:.84rem;line-height:1.5;color:var(--text);}
-.ds-text strong{color:#93c5fd;}
-.ds-empty{color:var(--muted);font-size:.83rem;font-style:italic;line-height:1.5;}
 </style>
 </head>
 <body>
@@ -326,7 +303,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
       <div style="font-size:.75rem;color:#4a7c59;" id="r-round-meta"></div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.35rem;">
-      <div class="dots-wrap" id="r-dots"></div>
+      <div class="dots" id="r-dots"></div>
       <!-- FIX 5a: Two distinct buttons — Edit & Restart vs Cancel Round -->
       <div class="round-ctrl">
         <button class="ctrl-btn ctrl-edit" onclick="editAndRestart()">✏️ Edit &amp; Restart</button>
@@ -386,14 +363,14 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
     <div id="r-strategy" class="strat-text"></div>
   </div>
 
-  <!-- Your Data Says panel — shows actual history vs planned strategy for this hole.
-       Collapsed by default so it doesn't demand attention on every hole while playing;
-       tap to expand when you want to look. -->
-  <details id="r-data-says" class="data-says-box" style="display:none;">
-    <summary class="data-says-lbl"><span>📊 Your Data Says…</span><span class="data-says-n" id="r-data-says-n"></span></summary>
-    <div id="r-data-says-body" style="margin-top:.6rem;"></div>
-    <button id="r-data-says-fold-btn" class="btn btn-amber" style="margin-top:.75rem;display:none;font-size:.82rem;padding:.55rem;" onclick="foldDataSaysIntoStrategy()">📝 Fold Top Insight Into Strategy</button>
-  </details>
+  <!-- Your Data Says panel — populated from history -->
+  <div id="r-data-says" style="display:none;background:rgba(249,168,37,.06);
+       border:1px solid rgba(249,168,37,.2);border-left:3px solid #f9a825;
+       border-radius:10px;padding:1rem;margin-bottom:1.2rem;">
+    <div style="font-size:.7rem;color:#f9a825;text-transform:uppercase;
+                letter-spacing:.1em;margin-bottom:.5rem;">📊 Your Data Says...</div>
+    <div id="r-data-says-content" style="font-size:.85rem;color:#ffe082;line-height:1.7;"></div>
+  </div>
 
   <div id="r-fw-section">
     <div class="sec">🏌️ Tee Shot / Fairway</div>
@@ -524,7 +501,6 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
   <h2 id="sc-title" style="color:var(--accent);margin-bottom:.2rem;"></h2>
   <div style="color:var(--muted);font-size:.85rem;font-style:italic;" id="sc-meta"></div>
   <div style="color:#6a9970;font-size:.8rem;margin-top:.15rem;margin-bottom:1rem;" id="sc-cond"></div>
-  <div class="dots-wrap" id="sc-dots" style="align-items:flex-start;margin-bottom:1rem;"></div>
   <div class="stat-grid" id="sc-stats"></div>
   <div id="sc-adj-panel" style="display:none;" class="adj-banner">
     <div class="adj-banner-title">📝 Strategy Updates Available</div>
@@ -681,7 +657,7 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
         <div style="color:var(--muted);font-style:italic;font-size:.85rem;" id="walk-course-name"></div>
         <div style="font-size:.75rem;color:#4a7c59;" id="walk-progress-txt"></div>
       </div>
-      <div class="dots-wrap" id="walk-dots"></div>
+      <div class="dots" id="walk-dots"></div>
     </div>
 
     <div class="hole-header">
@@ -864,19 +840,6 @@ function save(){
   localStorage.setItem('cp_hi',String(playerHI));
 }
 
-// Builds the hole-progress dots. For an 18-hole course this splits into two rows of 9
-// (front nine / back nine) rather than wrapping arbitrarily based on screen width.
-function dotsHtml(n,isDoneFn,isActiveFn,jumpFnName){
-  const dot=i=>`<div class="dot ${isDoneFn(i)?'dot-done':isActiveFn(i)?'dot-active':'dot-todo'}"
-    onclick="${jumpFnName}(${i})" title="Hole ${i+1}"></div>`;
-  if(n===18){
-    const front=Array.from({length:9},(_,i)=>dot(i)).join('');
-    const back=Array.from({length:9},(_,i)=>dot(i+9)).join('');
-    return `<div class="dots-row">${front}</div><div class="dots-row">${back}</div>`;
-  }
-  return `<div class="dots-row" style="flex-wrap:wrap;max-width:200px;justify-content:flex-end;">${Array.from({length:n},(_,i)=>dot(i)).join('')}</div>`;
-}
-
 // ══════════════════════════════════════════════════════ NAVIGATION ════════════
 function nav(id){
   if(id==='course-setup')initCourseSetup();
@@ -915,11 +878,11 @@ function loadCourseRatingFields(){
   document.getElementById('home-par').value=storedPar||calcPar||'';
   const hint=document.getElementById('home-par-hint');
   if(storedPar&&storedPar!==calcPar){
-    hint.textContent=`Hole pars add up to ${calcPar} — stored par is ${storedPar}`;
+    hint.textContent=`⚠️ Stored par is ${storedPar} but hole pars add up to ${calcPar} — check Course Manager`;
     hint.style.color='#fb923c';
   } else {
-    hint.textContent=`Calculated from hole pars: ${calcPar}`;
-    hint.style.color='';
+    hint.textContent=`✓ Hole pars add up to ${calcPar}`;
+    hint.style.color='var(--muted)';
   }
 }
 function saveCourseRating(){
@@ -1020,8 +983,13 @@ function csCourseChanged(){
   const calcPar=c.holes.reduce((a,h)=>a+h.par,0);
   document.getElementById('cs-par').value=c.coursePar||calcPar||'';
   const csHint=document.getElementById('cs-par-hint');
-  csHint.textContent=`Hole pars add up to ${calcPar}`;
-  csHint.style.color=c.coursePar&&c.coursePar!==calcPar?'#fb923c':'var(--muted)';
+  if(c.coursePar&&c.coursePar!==calcPar){
+    csHint.textContent=`⚠️ Hole pars add up to ${calcPar} — check individual hole pars below`;
+    csHint.style.color='#fb923c';
+  } else {
+    csHint.textContent=`✓ Hole pars add up to ${calcPar}`;
+    csHint.style.color='var(--muted)';
+  }
   renderCsHoles();
   document.getElementById('cs-strat-editor').style.display='none';
   document.getElementById('cs-paste-msg').textContent='';
@@ -1120,8 +1088,9 @@ function renderRound(){
   document.getElementById('r-course-name').textContent=course.name;
   document.getElementById('r-round-meta').textContent=
     `${roundMeta.type} · ${holeData.filter(h=>h.completed).length}/${course.holes.length} done`;
-  document.getElementById('r-dots').innerHTML=dotsHtml(
-    course.holes.length, i=>holeData[i].completed, i=>i===currentHole, 'jumpHole');
+  document.getElementById('r-dots').innerHTML=course.holes.map((_,i)=>
+    `<div class="dot ${holeData[i].completed?'dot-done':i===currentHole?'dot-active':'dot-todo'}"
+          onclick="jumpHole(${i})" title="Hole ${i+1}"></div>`).join('');
 
   document.getElementById('r-holenum').textContent=hole.no;
   const pb=document.getElementById('r-par-badge');
@@ -1178,6 +1147,133 @@ function renderRound(){
   renderDataSays();
 }
 
+function renderDataSays(){
+  const course=courses[activeCourseIdx];
+  const hole=course.holes[currentHole];
+  const panel=document.getElementById('r-data-says');
+  const content=document.getElementById('r-data-says-content');
+
+  // Pull all history rounds for this course
+  const courseRounds=history.filter(r=>r.course===course.name);
+  if(courseRounds.length<3){panel.style.display='none';return;}
+
+  // Get all completed hole data for this hole number across history
+  const holeHistory=courseRounds.flatMap(r=>r.holes||[])
+    .filter(h=>h.no===hole.no&&h.completed);
+
+  if(holeHistory.length<3){panel.style.display='none';return;}
+
+  const n=holeHistory.length;
+  const insights=[];
+
+  // ── Average score vs par ──
+  const avgScore=holeHistory.reduce((a,h)=>a+(h.score||(h.effectivePar||hole.par)),0)/n;
+  const avgVsPar=avgScore-(hole.par);
+  const scoreColor=avgVsPar<0?'#4ade80':avgVsPar<0.5?'#e8f5e9':avgVsPar<1?'#fb923c':'#f87171';
+  insights.push(`<span style="color:${scoreColor};">Average score: ${avgScore.toFixed(1)} (${avgVsPar>=0?'+':''}${avgVsPar.toFixed(1)} vs par)</span> over ${n} rounds`);
+
+  // ── Fairway (par 4s and 5s only) ──
+  if(hole.par!==3){
+    const fwHoles=holeHistory.filter(h=>h.fw);
+    if(fwHoles.length>=3){
+      const fwHit=fwHoles.filter(h=>h.fw==='hit').length;
+      const fwPct=Math.round(fwHit/fwHoles.length*100);
+      const missL=fwHoles.filter(h=>h.fw==='miss-left').length;
+      const missR=fwHoles.filter(h=>h.fw==='miss-right').length;
+      const missDir=missL>missR?'right':missR>missL?'left':'equally left and right';
+      let fwStr=`Fairway hit ${fwPct}% of the time`;
+      if(fwPct<50){
+        fwStr+=` — you typically miss <strong>${missDir}</strong>`;
+        if(missDir==='right'||missDir==='left')fwStr+=` (${Math.max(missL,missR)} of ${fwHoles.length-fwHit} misses)`;
+      }
+      insights.push(fwStr);
+    }
+  }
+
+  // ── GIR ──
+  const girHoles=holeHistory.filter(h=>h.gir);
+  if(girHoles.length>=3){
+    const girHit=girHoles.filter(h=>h.gir==='hit').length;
+    const girPct=Math.round(girHit/girHoles.length*100);
+    const missedGir=girHoles.filter(h=>h.gir==='miss');
+
+    // Approach distance most common
+    const distCounts={};
+    missedGir.forEach(h=>{if(h.approachDist)distCounts[h.approachDist]=(distCounts[h.approachDist]||0)+1;});
+    const topDist=Object.entries(distCounts).sort((a,b)=>b[1]-a[1])[0];
+
+    // Miss direction combinations
+    const comboCounts={};
+    missedGir.forEach(h=>{
+      const parts=[];
+      if(h.missDirDepth)parts.push(h.missDirDepth==='short'?'Short':'Long');
+      if(h.missDirLateral)parts.push(h.missDirLateral==='left'?'Left':'Right');
+      if(parts.length){const c=parts.join('+');comboCounts[c]=(comboCounts[c]||0)+1;}
+    });
+    const topCombo=Object.entries(comboCounts).sort((a,b)=>b[1]-a[1])[0];
+
+    const distLabels={'0-50':'inside 50y','50-100':'50-100y','100-150':'100-150y','150-200':'150-200y','200+':'200y+'};
+    let girStr=`GIR: ${girPct}% (${girHit} of ${girHoles.length})`;
+    if(girPct<50&&topDist)girStr+=` — most misses from <strong>${distLabels[topDist[0]]||topDist[0]}</strong>`;
+    if(topCombo)girStr+=`, typically <strong>${topCombo[0]}</strong>`;
+    insights.push(girStr);
+
+    // Score difference when GIR hit vs missed
+    const girHitHoles=holeHistory.filter(h=>h.gir==='hit');
+    const girMissHoles=holeHistory.filter(h=>h.gir==='miss');
+    if(girHitHoles.length>=2&&girMissHoles.length>=2){
+      const avgWhenHit=girHitHoles.reduce((a,h)=>a+(h.score||(h.effectivePar||hole.par)),0)/girHitHoles.length;
+      const avgWhenMiss=girMissHoles.reduce((a,h)=>a+(h.score||(h.effectivePar||hole.par)),0)/girMissHoles.length;
+      const diff=avgWhenMiss-avgWhenHit;
+      if(diff>=0.3)insights.push(`Missing the green costs you <strong>${diff.toFixed(1)} shots</strong> on this hole (${avgWhenHit.toFixed(1)} when on vs ${avgWhenMiss.toFixed(1)} when off)`);
+    }
+  }
+
+  // ── Putting ──
+  const puttHoles=holeHistory.filter(h=>h.putts>0);
+  if(puttHoles.length>=3){
+    const avgPutts=puttHoles.reduce((a,h)=>a+(h.putts||0),0)/puttHoles.length;
+    if(avgPutts>2.1)insights.push(`Average <strong>${avgPutts.toFixed(1)} putts</strong> — putting is costing shots here`);
+    else if(avgPutts<1.8)insights.push(`Average <strong>${avgPutts.toFixed(1)} putts</strong> — solid putting on this hole`);
+  }
+
+  // ── Bunkers ──
+  const bunkerHoles=holeHistory.filter(h=>(h.bunker||0)>0);
+  if(bunkerHoles.length>=2){
+    const totalVisits=bunkerHoles.reduce((a,h)=>a+(h.bunker||0),0);
+    const bunkerPct=Math.round(bunkerHoles.length/n*100);
+    insights.push(`You've found a bunker on <strong>${bunkerPct}% of rounds</strong> here (${totalVisits} total visit${totalVisits!==1?'s':''})`);
+  }
+
+  // ── Penalties ──
+  const penHoles=holeHistory.filter(h=>(h.penalty||0)>0);
+  if(penHoles.length>=2){
+    const penPct=Math.round(penHoles.length/n*100);
+    // Most common reason
+    const reasonCounts={};
+    penHoles.forEach(h=>(h.penaltyReasons||[]).forEach(r=>{reasonCounts[r]=(reasonCounts[r]||0)+1;}));
+    const topReason=Object.entries(reasonCounts).sort((a,b)=>b[1]-a[1])[0];
+    const reasonLabels={water:'water',lost:'lost ball',oob:'OOB',bunker:'unplayable in bunker',unplayable:'unplayable lie',other:'other'};
+    let penStr=`Penalty shots on <strong>${penPct}% of rounds</strong> here`;
+    if(topReason)penStr+=` — usually <strong>${reasonLabels[topReason[0]]||topReason[0]}</strong>`;
+    insights.push(penStr);
+  }
+
+  // ── Scrambling ──
+  const scrHoles=holeHistory.filter(h=>h.gir==='miss'&&h.scramble);
+  if(scrHoles.length>=3){
+    const scrSaved=scrHoles.filter(h=>h.scramble==='yes').length;
+    const scrPct=Math.round(scrSaved/scrHoles.length*100);
+    if(scrPct<30)insights.push(`Scrambling: only <strong>${scrPct}%</strong> when missing the green — short game is the priority here`);
+    else if(scrPct>60)insights.push(`Scrambling: <strong>${scrPct}%</strong> — good recovery when you miss the green`);
+  }
+
+  if(insights.length===0){panel.style.display='none';return;}
+
+  content.innerHTML=insights.map(i=>`<div style="margin-bottom:.3rem;">• ${i}</div>`).join('');
+  panel.style.display='block';
+}
+
 function renderRunningTotals(){
   const course=courses[activeCourseIdx];
   const ch=getCourseHandicap();
@@ -1219,227 +1315,6 @@ function renderRunningTotals(){
     // No course handicap set — show vs par only
     el.innerHTML=`<div style="font-size:1rem;font-weight:700;color:${vsParColor};">${vsParTxt} <span style="font-size:.7rem;color:var(--muted);font-weight:400;">thru ${doneCount}</span></div>`;
   }
-}
-
-// ═══════════════════════════════════════════════ YOUR DATA SAYS PANEL ════════
-// Compares what you planned to do (the strategy text) against what you actually
-// do on this hole, using saved round history. Only shown once there's enough
-// data on this specific hole (course + hole number) to say something meaningful.
-function renderDataSays(){
-  const box=document.getElementById('r-data-says');
-  const nEl=document.getElementById('r-data-says-n');
-  const body=document.getElementById('r-data-says-body');
-  if(!box)return;
-
-  const course=courses[activeCourseIdx];
-  const hole=course.holes[currentHole];
-  const courseName=course.name;
-  const holeNo=hole.no;
-  const holePar=hole.par;
-
-  // Gather every completed instance of this hole (by course name + hole number)
-  // from saved history, using effectivePar where an override was applied.
-  const instances=[];
-  history.forEach(r=>{
-    if(r.course!==courseName)return;
-    (r.holes||[]).forEach(h=>{
-      if(h.no===holeNo&&h.completed)instances.push(h);
-    });
-  });
-
-  const MIN_SAMPLE=3; // need at least this many rounds on the hole to say anything useful
-  if(instances.length<MIN_SAMPLE){
-    box.style.display='block';
-    nEl.textContent=instances.length?`${instances.length} round${instances.length!==1?'s':''} logged`:'';
-    body.innerHTML=`<div class="ds-empty">Play this hole a few more times (need ${MIN_SAMPLE}, have ${instances.length}) and this panel will start showing what actually tends to happen here — compared with the plan above.</div>`;
-    return;
-  }
-
-  box.style.display='block';
-  nEl.textContent=`${instances.length} rounds`;
-
-  // Each row: icon, html (for display), plain (for folding into strategy text — no markup),
-  // and priority (lower = more worth folding into the strategy; generic score average is
-  // low priority since it's not actionable on its own).
-  const rows=[];
-
-  // ── Scoring vs par ──────────────────────────────────────────────────────
-  const scores=instances.map(h=>h.score||h.effectivePar||h.par||holePar);
-  const pars=instances.map(h=>h.effectivePar||h.par||holePar);
-  const avgScore=scores.reduce((a,b)=>a+b,0)/scores.length;
-  const avgPar=pars.reduce((a,b)=>a+b,0)/pars.length;
-  const avgVsPar=avgScore-avgPar;
-  const vsParTxt=avgVsPar===0?'level with par':avgVsPar>0?`${avgVsPar.toFixed(1)} over par`:`${Math.abs(avgVsPar).toFixed(1)} under par`;
-  rows.push({icon:'🏅',priority:90,
-    html:`You average <strong>${avgScore.toFixed(2)}</strong> here — ${vsParTxt} on average.`,
-    plain:`Average score ${avgScore.toFixed(2)} (${vsParTxt}).`});
-
-  // ── Fairway (only relevant on par 4/5) ──────────────────────────────────
-  if(holePar!==3){
-    const fwLogged=instances.filter(h=>h.fw);
-    if(fwLogged.length>=MIN_SAMPLE){
-      const fwHit=fwLogged.filter(h=>h.fw==='hit').length;
-      const fwPct=Math.round(fwHit/fwLogged.length*100);
-      const missL=fwLogged.filter(h=>h.fw==='miss-left').length;
-      const missR=fwLogged.filter(h=>h.fw==='miss-right').length;
-      let missTxt='';
-      if(missL+missR>0){
-        const dom=missL>missR?'left':missR>missL?'right':null;
-        missTxt=dom?` — when you miss, it's usually <strong>${dom}</strong> (${dom==='left'?missL:missR} of ${missL+missR} misses)`:` — misses are split evenly left/right`;
-      }
-      const domSide=missL>missR?'left':missR>missL?'right':null;
-      rows.push({icon:'🏌️',priority:domSide?20:60,
-        html:`You hit this fairway <strong>${fwPct}%</strong> of the time${missTxt}.`,
-        plain:domSide?`Fairway hit ${fwPct}% — misses tend to go ${domSide}, so favour the ${domSide==='left'?'right':'left'} side off the tee.`:`Fairway hit ${fwPct}% of the time.`});
-    }
-  }
-
-  // ── GIR ──────────────────────────────────────────────────────────────────
-  const girLogged=instances.filter(h=>h.gir);
-  if(girLogged.length>=MIN_SAMPLE){
-    const girHit=girLogged.filter(h=>h.gir==='hit').length;
-    const girPct=Math.round(girHit/girLogged.length*100);
-    rows.push({icon:'🎯',priority:70,
-      html:`Greens in regulation: <strong>${girPct}%</strong> (${girHit} of ${girLogged.length}).`,
-      plain:`GIR ${girPct}%.`});
-
-    // Score impact of hitting vs missing the green, if both groups have data
-    const hitGroup=girLogged.filter(h=>h.gir==='hit');
-    const missGroup=girLogged.filter(h=>h.gir==='miss');
-    if(hitGroup.length>=1&&missGroup.length>=1){
-      const avgHit=hitGroup.reduce((a,h)=>a+(h.score||h.effectivePar||holePar),0)/hitGroup.length;
-      const avgMiss=missGroup.reduce((a,h)=>a+(h.score||h.effectivePar||holePar),0)/missGroup.length;
-      const diff=avgMiss-avgHit;
-      if(diff>0.15){
-        rows.push({icon:'📉',priority:15,
-          html:`Missing this green costs you about <strong>${diff.toFixed(1)} shots</strong> on average (${avgHit.toFixed(1)} when you hit it vs ${avgMiss.toFixed(1)} when you miss).`,
-          plain:`Missing this green costs about ${diff.toFixed(1)} extra shots on average — worth playing safely away from trouble even if it means a longer next shot.`});
-      }
-    }
-
-    // Most common miss direction/distance
-    if(missGroup.length>=MIN_SAMPLE){
-      const combos={};
-      missGroup.forEach(h=>{
-        const parts=[];
-        if(h.missDirDepth)parts.push(h.missDirDepth==='short'?'short':'long');
-        if(h.missDirLateral)parts.push(h.missDirLateral==='left'?'left':'right');
-        if(parts.length){const key=parts.join('+');combos[key]=(combos[key]||0)+1;}
-      });
-      const top=Object.entries(combos).sort((a,b)=>b[1]-a[1])[0];
-      if(top){
-        rows.push({icon:'📍',priority:10,
-          html:`Most common miss: <strong>${top[0]}</strong> (${top[1]} of ${missGroup.length} misses).`,
-          plain:`Most common miss when off target here is ${top[0]} (${top[1]} of ${missGroup.length} times) — aim to take that side out of play.`});
-      }
-    }
-
-    // Scrambling
-    if(missGroup.length>=MIN_SAMPLE){
-      const scrambleLogged=missGroup.filter(h=>h.scramble);
-      if(scrambleLogged.length>=1){
-        const saved=scrambleLogged.filter(h=>h.scramble==='yes').length;
-        const pct=Math.round(saved/scrambleLogged.length*100);
-        rows.push({icon:'🏳',priority:50,
-          html:`When you miss the green here, you scramble for par <strong>${pct}%</strong> of the time.`,
-          plain:`Scrambling ${pct}% when the green is missed.`});
-      }
-    }
-  }
-
-  // ── Bunkers ──────────────────────────────────────────────────────────────
-  const bunkerVisits=instances.filter(h=>(h.bunker||0)>0).length;
-  if(bunkerVisits>0){
-    const pct=Math.round(bunkerVisits/instances.length*100);
-    if(pct>=25){
-      rows.push({icon:'🏖️',priority:35,
-        html:`You've found sand here in <strong>${pct}%</strong> of rounds.`,
-        plain:`Bunker trouble in ${pct}% of rounds — worth taking extra care to avoid the sand here.`});
-    }
-  }
-
-  // ── Penalties ────────────────────────────────────────────────────────────
-  const penaltyRounds=instances.filter(h=>(h.penalty||0)>0).length;
-  if(penaltyRounds>0){
-    const pct=Math.round(penaltyRounds/instances.length*100);
-    if(pct>=20){
-      const reasonCounts={};
-      instances.forEach(h=>(h.penaltyReasons||[]).forEach(r=>{reasonCounts[r]=(reasonCounts[r]||0)+1;}));
-      const topReason=Object.entries(reasonCounts).sort((a,b)=>b[1]-a[1])[0];
-      const reasonLabels={water:'water',lost:'a lost ball',oob:'OOB',bunker:'an unplayable bunker lie',unplayable:'an unplayable lie',other:'other trouble'};
-      const reasonTxt=topReason?` — usually ${reasonLabels[topReason[0]]||topReason[0]}`:'';
-      rows.push({icon:'⚠️',priority:12,
-        html:`Penalty shots in <strong>${pct}%</strong> of rounds here${reasonTxt}.`,
-        plain:`Penalty shots in ${pct}% of rounds here${reasonTxt} — play the safer line even if it costs a few yards.`});
-    }
-  }
-
-  // ── Putts ────────────────────────────────────────────────────────────────
-  const puttsLogged=instances.filter(h=>h.putts!==undefined&&h.putts!==null);
-  if(puttsLogged.length>=MIN_SAMPLE){
-    const avgPutts=puttsLogged.reduce((a,h)=>a+h.putts,0)/puttsLogged.length;
-    if(avgPutts>=2.3){
-      rows.push({icon:'⛳',priority:55,
-        html:`You're averaging <strong>${avgPutts.toFixed(1)} putts</strong> here — a touch high, worth a look.`,
-        plain:`Averaging ${avgPutts.toFixed(1)} putts here — take an extra moment reading the line.`});
-    }
-  }
-
-  // ── Strategy assessment pattern ────────────────────────────────────────
-  const srLogged=instances.filter(h=>h.sr);
-  if(srLogged.length>=MIN_SAMPLE){
-    const wrongOrAdjusted=srLogged.filter(h=>h.sr==='wrong'||h.sr==='adjusted').length;
-    const pct=Math.round(wrongOrAdjusted/srLogged.length*100);
-    if(pct>=40){
-      rows.push({icon:'🧠',priority:5,
-        html:`You've rated your strategy here as wrong or needing adjustment in <strong>${pct}%</strong> of rounds — the plan above may be worth revisiting.`,
-        plain:`This strategy has needed adjusting or been wrong in ${pct}% of logged rounds — worth rethinking the plan for this hole.`});
-    } else if(pct===0&&srLogged.length>=MIN_SAMPLE){
-      rows.push({icon:'✅',priority:95,
-        html:`You've called this strategy correct every time you've logged it — it's working.`,
-        plain:`Strategy has been correct every time logged — no change needed.`});
-    }
-  }
-
-  body.innerHTML=rows.map(r=>`<div class="ds-row"><span class="ds-icon">${r.icon}</span><span class="ds-text">${r.html}</span></div>`).join('');
-
-  // Pick the single most actionable insight (lowest priority number) to offer folding
-  // into the saved strategy. Skip rows without a plain-text version.
-  const foldable=rows.filter(r=>r.plain).sort((a,b)=>(a.priority||99)-(b.priority||99));
-  const foldBtn=document.getElementById('r-data-says-fold-btn');
-  if(foldable.length){
-    const top=foldable[0];
-    const existingStrategy=hole.strategy||'';
-    const alreadyFolded=existingStrategy.includes(top.plain);
-    foldBtn.style.display='block';
-    foldBtn.textContent=alreadyFolded?'✅ Already Folded Into Strategy':'📝 Fold Top Insight Into Strategy';
-    foldBtn.disabled=alreadyFolded;
-    foldBtn.style.opacity=alreadyFolded?'.5':'1';
-    foldBtn.style.cursor=alreadyFolded?'default':'pointer';
-    foldBtn.dataset.insight=top.plain;
-  } else {
-    foldBtn.style.display='none';
-  }
-}
-
-// Permanently appends the current top Data Says insight onto this hole's saved
-// strategy, so next time you play it the lesson is already part of the plan —
-// and the panel above naturally has less new ground to cover over time.
-function foldDataSaysIntoStrategy(){
-  const foldBtn=document.getElementById('r-data-says-fold-btn');
-  const insight=foldBtn.dataset.insight;
-  if(!insight)return;
-  const course=courses[activeCourseIdx];
-  const hole=course.holes[currentHole];
-  const existing=hole.strategy||'';
-  if(existing.includes(insight)){
-    alert('This insight is already part of the saved strategy for this hole.');
-    return;
-  }
-  hole.strategy=existing?(existing+' | '+insight):insight;
-  save();
-  renderRound(); // refresh strategy box and re-check fold button state
-  alert('✅ Added to the saved strategy for this hole.');
 }
 function renderScore(){
   const hd=holeData[currentHole];
@@ -1561,78 +1436,9 @@ function saveFields(){holeData[currentHole].comment=document.getElementById('r-c
 function commitHole(){
   saveFields();holeData[currentHole].completed=true;
   const len=courses[activeCourseIdx].holes.length;
-  const hole=courses[activeCourseIdx].holes[currentHole];
-  // After completing hole 9 (with more holes still to play), pause for a card check
-  // before moving on — mirrors the "check cards at the turn" habit in real competitions.
-  if(hole.no===9&&currentHole<len-1){
-    showFront9Check();
-    return;
-  }
-  if(currentHole<len-1){currentHole++;renderRound();window.scrollTo(0,0);}
+  if(currentHole<len-1){currentHole++;renderRound();}
   else goScorecard('complete');
 }
-
-// ═══════════════════════════════════════════════════ FRONT 9 CHECK ═══════════
-function showFront9Check(){
-  const course=courses[activeCourseIdx];
-  const ch=getCourseHandicap();
-  const front=holeData.slice(0,9);
-  const frontHoles=course.holes.slice(0,9);
-
-  let gross=0,parTot=0,putts=0,pts=0,fwHoles=0,fwHit=0,girHit=0;
-  front.forEach((d,i)=>{
-    const h=frontHoles[i];
-    const ep=d.overridePar||h.par;
-    const sc=d.score||ep;
-    gross+=sc;parTot+=ep;putts+=d.putts||0;
-    if(ep!==3){fwHoles++;if(d.fw==='hit')fwHit++;}
-    if(d.gir==='hit')girHit++;
-    if(ch!==null){pts+=stablefordPts(sc,ep,h.si,ch)||0;}
-  });
-  const vsPar=gross-parTot;
-  const vsParTxt=vsPar===0?'E':vsPar>0?'+'+vsPar:String(vsPar);
-
-  document.getElementById('front9-stats').innerHTML=`
-    <div class="stat-card"><div class="stat-val">${gross}</div><div class="stat-lbl">Gross</div></div>
-    <div class="stat-card"><div class="stat-val">${vsParTxt}</div><div class="stat-lbl">vs Par</div></div>
-    <div class="stat-card"><div class="stat-val" style="color:#f9a825;">${ch!==null?pts:'—'}</div><div class="stat-lbl">Stableford Pts</div></div>
-    <div class="stat-card"><div class="stat-val">${putts}</div><div class="stat-lbl">Putts</div></div>
-    <div class="stat-card"><div class="stat-val">${fwHoles?Math.round(fwHit/fwHoles*100)+'%':'—'}</div><div class="stat-lbl">Fairways</div></div>
-    <div class="stat-card"><div class="stat-val">${Math.round(girHit/9*100)}%</div><div class="stat-lbl">GIR</div></div>`;
-
-  document.getElementById('front9-tbody').innerHTML=front.map((d,i)=>{
-    const h=frontHoles[i];
-    const ep=d.overridePar||h.par;
-    const sc=d.score||ep;
-    const pts9=ch!==null?stablefordPts(sc,ep,h.si,ch):null;
-    const diff=sc-ep;
-    const scColor=diff<=-2?'#f9a825':diff===-1?'#4ade80':diff===0?'#e8f5e9':diff===1?'#fb923c':'#f87171';
-    return `<tr>
-      <td class="td-hole">${h.no}</td>
-      <td><span class="td-par ${ep===3?'par3':ep===4?'par4':'par5'}">${ep}</span></td>
-      <td style="color:${scColor};font-weight:600;">${sc}</td>
-      <td style="color:#f9a825;">${pts9!==null?pts9:'·'}</td>
-      <td style="color:var(--accent);">${d.putts||0}</td>
-    </tr>`;
-  }).join('');
-
-  document.getElementById('front9-dots').innerHTML=dotsHtml(
-    course.holes.length, i=>holeData[i].completed, i=>false, 'jumpFromFront9');
-
-  document.getElementById('front9-modal').style.display='flex';
-}
-function confirmFront9(){
-  document.getElementById('front9-modal').style.display='none';
-  const len=courses[activeCourseIdx].holes.length;
-  if(currentHole<len-1){currentHole++;renderRound();window.scrollTo(0,0);}
-  else goScorecard('complete');
-}
-function jumpFromFront9(i){
-  document.getElementById('front9-modal').style.display='none';
-  jumpHole(i);
-  window.scrollTo(0,0);
-}
-
 function jumpHole(i){saveFields();currentHole=i;renderRound();}
 function goPrev(){if(currentHole>0){saveFields();currentHole--;renderRound();}}
 function goNext(){if(currentHole<courses[activeCourseIdx].holes.length-1){saveFields();currentHole++;renderRound();}}
@@ -1648,11 +1454,6 @@ function renderScorecard(){
   document.getElementById('sc-meta').textContent=`${course.name} · ${roundMeta.date} · ${roundMeta.type}${roundMeta.playerHI?' · HI '+roundMeta.playerHI:''}`;
   document.getElementById('sc-cond').textContent=roundMeta.conditions?'🌬 '+roundMeta.conditions:'';
   document.getElementById('sc-back').textContent=scReturnScreen==='round'?'← Back to Round':'← Back';
-
-  // Same hole-progress dots as the round screen — tap any hole to jump straight into it
-  document.getElementById('sc-dots').innerHTML=dotsHtml(
-    holes.length, i=>holeData[i].completed, i=>false, 'jumpFromSc');
-
 
   // FIX 5b: Only count/show completed holes in stats
   const doneMask=holeData.map(h=>h.completed);
@@ -2074,6 +1875,50 @@ function renderHistory(){
   const scrambledAll=done.filter(h=>h.gir==='miss'&&h.scramble==='yes').length;
   const scramblePctAll=girMissAll>0?Math.round(scrambledAll/girMissAll*100):null;
 
+  // Front/back nine split — per round
+  const stableford=isStableford();
+  let frontVal='—', backVal='—', frontLbl='', backLbl='';
+  // Only count rounds with at least 5 holes on each nine
+  const frontRounds=rounds.filter(r=>(r.holes||[]).filter(h=>h.no<=9&&h.completed).length>=5);
+  const backRounds=rounds.filter(r=>(r.holes||[]).filter(h=>h.no>=10&&h.completed).length>=5);
+  if(stableford){
+    frontLbl='Avg Front 9 Pts'; backLbl='Avg Back 9 Pts';
+    if(frontRounds.length){
+      const avgF=frontRounds.reduce((a,r)=>{
+        const ch=r.courseHandicap||null;
+        const pts=r.holes.filter(h=>h.no<=9&&h.completed)
+          .reduce((s,h)=>s+(ch!==null?stablefordPts(h.score||(h.effectivePar||h.par),h.effectivePar||h.par,h.si,ch)||0:0),0);
+        return a+pts;
+      },0)/frontRounds.length;
+      frontVal=avgF.toFixed(1);
+    }
+    if(backRounds.length){
+      const avgB=backRounds.reduce((a,r)=>{
+        const ch=r.courseHandicap||null;
+        const pts=r.holes.filter(h=>h.no>=10&&h.completed)
+          .reduce((s,h)=>s+(ch!==null?stablefordPts(h.score||(h.effectivePar||h.par),h.effectivePar||h.par,h.si,ch)||0:0),0);
+        return a+pts;
+      },0)/backRounds.length;
+      backVal=avgB.toFixed(1);
+    }
+  } else {
+    frontLbl='Avg Front 9'; backLbl='Avg Back 9';
+    if(frontRounds.length){
+      const avgF=frontRounds.reduce((a,r)=>{
+        const gross=r.holes.filter(h=>h.no<=9&&h.completed).reduce((s,h)=>s+(h.score||0),0);
+        return a+gross;
+      },0)/frontRounds.length;
+      frontVal=avgF.toFixed(1);
+    }
+    if(backRounds.length){
+      const avgB=backRounds.reduce((a,r)=>{
+        const gross=r.holes.filter(h=>h.no>=10&&h.completed).reduce((s,h)=>s+(h.score||0),0);
+        return a+gross;
+      },0)/backRounds.length;
+      backVal=avgB.toFixed(1);
+    }
+  }
+
   document.getElementById('hist-agg-stats').innerHTML=`
     <div class="lbl" style="margin-bottom:.6rem;">Overall (${totalRounds} round${totalRounds>1?'s':''})</div>
     <div class="stat-grid">
@@ -2084,6 +1929,8 @@ function renderHistory(){
       <div class="stat-card"><div class="stat-val">${avgPutts.toFixed(1)}</div><div class="stat-lbl">Avg Putts/H</div></div>
       <div class="stat-card"><div class="stat-val">${fwL}L / ${fwR}R</div><div class="stat-lbl">FW Misses</div></div>
       <div class="stat-card"><div class="stat-val">${scramblePctAll!==null?scramblePctAll+'%':'—'}</div><div class="stat-lbl">Scrambling%</div></div>
+      <div class="stat-card"><div class="stat-val">${frontVal}</div><div class="stat-lbl">${frontLbl}</div></div>
+      <div class="stat-card"><div class="stat-val">${backVal}</div><div class="stat-lbl">${backLbl}</div></div>
     </div>`;
 
   // Per-hole stats
@@ -2595,6 +2442,18 @@ function renderRoundView(r){
     const ep=h.effectivePar||h.par;
     return a+(stablefordPts(h.score||ep,ep,h.si,ch)||0);},0):null;
 
+  // Front/back nine for this individual round
+  const frontDone=done.filter(h=>h.no<=9);
+  const backDone=done.filter(h=>h.no>=10);
+  const frontGross=frontDone.reduce((a,h)=>a+(h.score||(h.effectivePar||h.par)),0);
+  const backGross=backDone.reduce((a,h)=>a+(h.score||(h.effectivePar||h.par)),0);
+  const frontPts=ch!==null?frontDone.reduce((a,h)=>{const ep=h.effectivePar||h.par;return a+(stablefordPts(h.score||ep,ep,h.si,ch)||0);},0):null;
+  const backPts=ch!==null?backDone.reduce((a,h)=>{const ep=h.effectivePar||h.par;return a+(stablefordPts(h.score||ep,ep,h.si,ch)||0);},0):null;
+  const frontVal=isStab?(frontPts!==null&&frontDone.length>=5?frontPts:'—'):(frontDone.length>=5?frontGross:'—');
+  const backVal=isStab?(backPts!==null&&backDone.length>=5?backPts:'—'):(backDone.length>=5?backGross:'—');
+  const frontLbl=isStab?'Front 9 Pts':'Front 9';
+  const backLbl=isStab?'Back 9 Pts':'Back 9';
+
   const statCards=isStab?`
     <div class="stat-card" style="border-color:rgba(249,168,37,.4);"><div class="stat-val" style="color:#f9a825;">${totalPts!==null?totalPts:'—'}</div><div class="stat-lbl">Stableford Pts</div></div>
     <div class="stat-card"><div class="stat-val">${gross}</div><div class="stat-lbl">Gross Score</div></div>
@@ -2602,14 +2461,18 @@ function renderRoundView(r){
     <div class="stat-card"><div class="stat-val">${putts}</div><div class="stat-lbl">Putts</div></div>
     <div class="stat-card"><div class="stat-val">${fwH.length?Math.round(fwHit/fwH.length*100)+'%':'—'}</div><div class="stat-lbl">Fairways</div></div>
     <div class="stat-card"><div class="stat-val">${done.length?Math.round(girHit/done.length*100)+'%':'—'}</div><div class="stat-lbl">GIR</div></div>
-    <div class="stat-card"><div class="stat-val">${scramblePct!==null?scramblePct+'%':'—'}</div><div class="stat-lbl">Scrambling</div></div>`:`
+    <div class="stat-card"><div class="stat-val">${scramblePct!==null?scramblePct+'%':'—'}</div><div class="stat-lbl">Scrambling</div></div>
+    <div class="stat-card"><div class="stat-val">${frontVal}</div><div class="stat-lbl">${frontLbl}</div></div>
+    <div class="stat-card"><div class="stat-val">${backVal}</div><div class="stat-lbl">${backLbl}</div></div>`:`
     <div class="stat-card"><div class="stat-val">${gross}</div><div class="stat-lbl">Gross Score</div></div>
     <div class="stat-card"><div class="stat-val">${vsPar===0?'E':vsPar>0?'+'+vsPar:vsPar}</div><div class="stat-lbl">vs Par</div></div>
     <div class="stat-card"><div class="stat-val">${totalPts!==null?totalPts:'—'}</div><div class="stat-lbl">Stableford Pts</div></div>
     <div class="stat-card"><div class="stat-val">${putts}</div><div class="stat-lbl">Putts</div></div>
     <div class="stat-card"><div class="stat-val">${fwH.length?Math.round(fwHit/fwH.length*100)+'%':'—'}</div><div class="stat-lbl">Fairways</div></div>
     <div class="stat-card"><div class="stat-val">${done.length?Math.round(girHit/done.length*100)+'%':'—'}</div><div class="stat-lbl">GIR</div></div>
-    <div class="stat-card"><div class="stat-val">${scramblePct!==null?scramblePct+'%':'—'}</div><div class="stat-lbl">Scrambling</div></div>`;
+    <div class="stat-card"><div class="stat-val">${scramblePct!==null?scramblePct+'%':'—'}</div><div class="stat-lbl">Scrambling</div></div>
+    <div class="stat-card"><div class="stat-val">${frontVal}</div><div class="stat-lbl">${frontLbl}</div></div>
+    <div class="stat-card"><div class="stat-val">${backVal}</div><div class="stat-lbl">${backLbl}</div></div>`;
   document.getElementById('rv-stats').innerHTML=statCards;
 
   // Override panel
@@ -3018,11 +2881,11 @@ function renderWalkHole(){
   document.getElementById('walk-progress-txt').textContent=
     `Hole ${walkHoleIdx+1} of ${course.holes.length} · ${filled} strateg${filled!==1?'ies':'y'} recorded`;
 
-  document.getElementById('walk-dots').innerHTML=dotsHtml(
-    course.holes.length,
-    i=>walkStrategies[i]&&walkStrategies[i].trim(),
-    i=>i===walkHoleIdx,
-    'walkJump');
+  document.getElementById('walk-dots').innerHTML=course.holes.map((_,i)=>{
+    const hasTxt=walkStrategies[i]&&walkStrategies[i].trim();
+    const cls=i===walkHoleIdx?'dot dot-active':hasTxt?'dot dot-done':'dot dot-todo';
+    return `<div class="${cls}" onclick="walkJump(${i})" title="Hole ${i+1}"></div>`;
+  }).join('');
 
   document.getElementById('walk-holenum').textContent=hole.no;
   const pb=document.getElementById('walk-par-badge');
@@ -3229,22 +3092,5 @@ function clearOverride(){
 // ══════════════════════════════════════════════════════════ BOOT ══════════════
 initHome();
 </script>
-<!-- ══ FRONT 9 CHECK MODAL ══════════════════════════════════════════════════ -->
-<div id="front9-modal" class="modal-overlay" style="display:none;">
-  <div class="modal-card">
-    <div style="font-size:1.7rem;margin-bottom:.15rem;">🏌️</div>
-    <h2 style="color:var(--accent);margin-bottom:.15rem;">Front 9 Complete</h2>
-    <p style="color:var(--muted);font-size:.85rem;margin-bottom:1rem;">If in a Competition, check your card against your playing partners' before heading to the 10th.</p>
-    <div class="dots-wrap" id="front9-dots" style="align-items:center;margin:0 0 1rem;"></div>
-    <div class="stat-grid" id="front9-stats" style="margin:0 0 1rem;"></div>
-    <table class="sc-table" style="margin-bottom:1.25rem;">
-      <thead><tr><th style="text-align:left;">#</th><th>Par</th><th>Score</th><th>Pts</th><th>Putts</th></tr></thead>
-      <tbody id="front9-tbody"></tbody>
-    </table>
-    <button class="btn btn-primary" onclick="confirmFront9()">✅ Got It — Continue to Back 9 →</button>
-    <p style="color:var(--muted);font-size:.72rem;text-align:center;margin-top:.4rem;">Spot an error? Tap a hole's dot above to jump straight back and fix it.</p>
-  </div>
-</div>
-
 </body>
 </html>
