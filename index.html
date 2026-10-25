@@ -363,13 +363,19 @@ hr{border:none;border-top:1px solid var(--border);margin:1rem 0;}
     <div id="r-strategy" class="strat-text"></div>
   </div>
 
-  <!-- Your Data Says panel — populated from history -->
+  <!-- Your Data Says panel — populated from history, collapsible -->
   <div id="r-data-says" style="display:none;background:rgba(249,168,37,.06);
        border:1px solid rgba(249,168,37,.2);border-left:3px solid #f9a825;
-       border-radius:10px;padding:1rem;margin-bottom:1.2rem;">
-    <div style="font-size:.7rem;color:#f9a825;text-transform:uppercase;
-                letter-spacing:.1em;margin-bottom:.5rem;">📊 Your Data Says...</div>
-    <div id="r-data-says-content" style="font-size:.85rem;color:#ffe082;line-height:1.7;"></div>
+       border-radius:10px;margin-bottom:1.2rem;overflow:hidden;">
+    <div onclick="toggleDataSays()" style="cursor:pointer;display:flex;align-items:center;
+         justify-content:space-between;padding:.75rem 1rem;user-select:none;">
+      <div style="font-size:.7rem;color:#f9a825;text-transform:uppercase;letter-spacing:.1em;">
+        📊 Your Data Says...
+      </div>
+      <span id="r-data-says-arrow" style="font-size:.75rem;color:#f9a825;">▶</span>
+    </div>
+    <div id="r-data-says-content" style="font-size:.85rem;color:#ffe082;line-height:1.7;
+         padding:0 1rem 1rem;display:none;"></div>
   </div>
 
   <div id="r-fw-section">
@@ -1271,7 +1277,23 @@ function renderDataSays(){
   if(insights.length===0){panel.style.display='none';return;}
 
   content.innerHTML=insights.map(i=>`<div style="margin-bottom:.3rem;">• ${i}</div>`).join('');
+  // Show panel header — keep content collapsed until tapped
   panel.style.display='block';
+  // Restore collapsed state (content hidden, arrow pointing right)
+  content.style.display='none';
+  document.getElementById('r-data-says-arrow').textContent='▶';
+}
+
+function toggleDataSays(){
+  const content=document.getElementById('r-data-says-content');
+  const arrow=document.getElementById('r-data-says-arrow');
+  if(content.style.display==='none'){
+    content.style.display='block';
+    arrow.textContent='▼';
+  } else {
+    content.style.display='none';
+    arrow.textContent='▶';
+  }
 }
 
 function renderRunningTotals(){
